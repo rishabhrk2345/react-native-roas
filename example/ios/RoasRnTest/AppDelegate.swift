@@ -12,9 +12,9 @@ import ReactAppDependencyProvider
 //
 //     import React_RCTLinking
 //
-// This was written on Windows with no Xcode available, so which of the two the
-// build wants is untested. It is a one-line fix either way, not a design
-// question.
+// Authored on a Windows machine, so which of the two the build wants is
+// untested here. It is a one-line fix either way, not a design question — the
+// first Xcode build will say which.
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {

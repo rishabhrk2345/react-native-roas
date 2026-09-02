@@ -25,19 +25,27 @@ surface.
 | | Android | iOS |
 |---|---|---|
 | Bridge code | complete | complete |
-| Compiles | yes | **never attempted** |
+| Compiles | yes | **not yet attempted** |
 | Runs on a device | yes | no |
 | Beacons reach the backend | yes, 50 fields | no |
 | Unit tests (28, shared) | pass | pass |
 
-### Blocked on access this repo does not have
+### Next up — the iOS build
 
-1. **Compile and run iOS on a Mac.** The largest remaining risk by far. Nothing
-   in `ios/` or `example/ios/` has been through a toolchain — it was all
-   written on Windows. Three known first-build hazards and the full run
-   procedure are in "iOS (unverified — needs a Mac)" below. Budget for finding
-   at least one more: Android's first run surfaced three real bugs, and the
-   Flutter bridge's first iOS run found two that only hardware showed.
+The same Mac that verified `roas_flutter` on a physical iPhone (36 device
+fields, ATT grant, Apple Search Ads, signed beacons) is what this needs. Nothing
+here is blocked on tooling nobody has; it is simply the next session's work, and
+the example is prepared for it.
+
+1. **Compile and run iOS in Xcode.** The largest remaining risk, and the
+   immediate next step. Nothing in `ios/` or `example/ios/` has been through a
+   toolchain yet — it was written on a Windows machine, which is a statement
+   about where it was authored, not about what is available. Three known
+   first-build hazards and the full run procedure are in "iOS — ready to build"
+   below. Budget for finding at least one more: Android's first run surfaced
+   three real bugs, and `roas_flutter`'s first iOS run found two that only real
+   hardware showed (a swallowed ATT prompt, and `last_update_at` present in the
+   Simulator but absent on device).
 2. **A real Play Store install** (needs Play Console). The install referrer only
    arrives on a genuine Play-mediated install — never `run-android`. This is the
    one thing that proves deterministic click → install through this bridge;
@@ -86,7 +94,7 @@ neither repo carries a CHANGELOG, LICENSE, lint config or CI. Where they differ:
 | Distinct tests | 12 | 18 (28 reported; one block is parameterised 10 ways) |
 | Example buttons | 7 | 9 — this one can also fire a SKAN value |
 | Real Play-Store installs | **34** | **0** |
-| iOS run on a device | **yes** — 36 fields, ATT, ASA, signed beacons | **never compiled** |
+| iOS run on a device | **yes** — 36 fields, ATT, ASA, signed beacons | **not yet built** — same Mac, next session |
 
 The two rows that matter are the last two. Everything above them is level.
 
@@ -207,12 +215,12 @@ The `ios/` bridge (`RoasReactNative.swift` + `RoasReactNative.m` +
 `react-native-roas.podspec`) is written and mirrors the Android module
 method-for-method, but — unlike Android — **it has not been compiled,
 installed, or run on a device or simulator.** It was written on Windows,
-where there's no Xcode. `example/` already has its
-own `ios/` folder from RN's default template — someone with a Mac needs to
-add a `RoasSensor` pod source to its `ios/Podfile` (a commented-out line is
-already there, pointing at where to uncomment it), run `pod install`, and
-prove it the same way Android already was — see "Testing this yourself"
-below — before treating iOS as trustworthy the way Android now is.
+which is where it was authored, not a constraint on the project. `example/`
+carries a full `ios/` project, the `RoasSensor` pod source is live in its
+Podfile, and `NSUserTrackingUsageDescription` and the deep-link forwarding are
+in place — so the remaining work is `pod install`, build, run, and prove it the
+same way Android already was. See "Testing this yourself" below. Until that
+happens, iOS should not be treated as trustworthy the way Android now is.
 
 Bridge 0.1.5 adds four iOS-facing methods — `requestTracking()`,
 `updateConversionValue()`, `appAccountToken()` and `onDeliveryResult()` — so
@@ -536,7 +544,7 @@ Same AAB/Play Console internal-testing rules apply for a real install
 referrer as with any Android app — `run-android` via USB will never populate
 it; that needs an actual Play Store install.
 
-### iOS (unverified — needs a Mac)
+### iOS — ready to build, not yet built
 
 The example is now **iOS-ready as far as a Windows machine can make it**. Four
 things that previously would have blocked or silently broken the first run are
@@ -571,9 +579,11 @@ So the remaining steps are just the build:
    exercises the deep-link path; the `roasrn` scheme is registered in
    `Info.plist`.
 
-**Still nobody has compiled this.** Everything above was written on Windows with
-no Xcode, so it is unproven in the specific sense that matters: no toolchain has
-ever checked it. Three known first-build risks, in the order I'd check them:
+**This has not been compiled yet.** Everything above was authored on a Windows
+machine, so it is unproven in the one sense that matters: no toolchain has
+checked it. That is a gap in verification, not in access — the Mac and iOS
+device that proved `roas_flutter` are what this is waiting on, and the setup
+work that used to stand in the way is done. Three known first-build risks, in the order I'd check them:
 
 - `RCTLinkingManager` may need an explicit `import React_RCTLinking` in
   `AppDelegate.swift` depending on linkage — there's a note at the top of that
