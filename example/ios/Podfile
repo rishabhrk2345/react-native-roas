@@ -17,12 +17,29 @@ end
 target 'RoasRnTest' do
   config = use_native_modules!
 
-  # RoasSensor (sdk-ios) isn't published to a resolvable CocoaPods source yet
-  # — react-native-roas.podspec declares the dependency, but nothing can
-  # satisfy it without an explicit source here. Uncomment and point at
-  # wherever you checked out sdk-ios on THIS machine (paths differ per
-  # machine/OS, which is why this isn't left active by default):
-  # pod 'RoasSensor', :path => '../../../roas-sensor-service/sdk-ios'
+  # RoasSensor is not on the CocoaPods trunk, and a podspec cannot name a git
+  # source for its own dependency — so although react-native-roas.podspec
+  # declares `s.dependency 'RoasSensor'`, nothing can satisfy it without this
+  # line. Without it `pod install` fails with
+  #
+  #   [!] Unable to find a specification for `RoasSensor`
+  #
+  # which reads like a broken bridge and is really a missing source.
+  #
+  # LIVE rather than commented out, matching roas-sensor-flutter's example
+  # Podfile. It used to be commented with a machine-specific :path, which made
+  # the documented first step on a Mac "edit this file before anything can
+  # build" — against a path that only ever existed on one laptop.
+  #
+  # Pinned to a TAG, not a branch: a tag is what makes a build traceable to a
+  # release, and 0.1.7 is a hard floor for bridge 0.1.5 — requestTracking,
+  # updateConversionValue and appAccountToken are 0.1.7 API, and anything older
+  # fails to compile with missing-member errors rather than at resolve time.
+  pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.7'
+
+  # For local development against a checkout of sdk-ios instead, comment the
+  # line above and point this at wherever you placed it:
+  #   pod 'RoasSensor', :path => '../../../roas-sensor-service/sdk-ios'
 
   use_react_native!(
     :path => config[:reactNativePath],

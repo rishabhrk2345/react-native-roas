@@ -428,18 +428,60 @@ it; that needs an actual Play Store install.
 
 ### iOS (unverified — needs a Mac)
 
-1. In `example/ios/Podfile`, uncomment the `pod 'RoasSensor', :path =>
-   ...` line and point it at your local `sdk-ios` checkout.
-2. `cd example/ios && pod install`
-3. Add `NSUserTrackingUsageDescription` to `example/ios/RoasRnTest/Info.plist`
-   (see "iOS-specific setup" above).
-4. `npx react-native run-ios` (Metro from the Android steps above works for
-   either platform — no need to restart it).
-5. Tap through the same four buttons, then check the Django backend the same
-   way as Android.
+The example is now **iOS-ready as far as a Windows machine can make it**. Four
+things that previously would have blocked or silently broken the first run are
+done:
 
-Nobody has done this yet. The first person to run it should expect to find
-and fix at least one real issue — that's exactly what happened getting
-Android working (see the three bugs above) and what happened getting the
-Flutter iOS bridge scaffolded too; a bridge that's never been compiled by an
-actual toolchain should not be assumed correct.
+- **`NSUserTrackingUsageDescription`** is in `Info.plist`. Without it iOS does
+  not merely skip the ATT prompt — it *terminates the app* when the prompt is
+  requested, which the SDK does ~0.6s after `configure()` by default. The first
+  device launch would have crashed.
+- **The Podfile's `RoasSensor` source is live**, pinned to `:tag => '0.1.7'`
+  rather than commented out behind a machine-specific path. `pod install` no
+  longer needs an edit first.
+- **`AppDelegate` forwards deep links** (`openURL` + `continueUserActivity`)
+  into `RCTLinkingManager`. Without these, `App.tsx`'s deep-link wiring is dead
+  code on iOS — `Linking.getInitialURL()` resolves null, the `url` listener
+  never fires, and an `rsclid` arriving by link is lost silently. Android needs
+  no equivalent; the intent reaches the Activity.
+- **The three iOS-only methods have buttons** — `requestTracking`,
+  `appAccountToken`, `updateConversionValue`. Nothing could previously *run*
+  them, which is unfortunate given they are the surface most in need of a first
+  execution. They appear on Android too, where each is an explicit native
+  no-op, so the pass-through is checkable on both.
+
+So the remaining steps are just the build:
+
+1. `cd example && npm install`
+2. `cd ios && pod install`
+3. `npx react-native run-ios` (Metro from the Android steps works for either
+   platform — no need to restart it)
+4. Tap through the buttons, then check the Django backend the same way as
+   Android. `xcrun simctl openurl booted "roasrn://open?rsclid=test123"`
+   exercises the deep-link path; the `roasrn` scheme is registered in
+   `Info.plist`.
+
+**Still nobody has compiled this.** Everything above was written on Windows with
+no Xcode, so it is unproven in the specific sense that matters: no toolchain has
+ever checked it. Three known first-build risks, in the order I'd check them:
+
+- `RCTLinkingManager` may need an explicit `import React_RCTLinking` in
+  `AppDelegate.swift` depending on linkage — there's a note at the top of that
+  file. One line either way.
+- `RoasReactNative` subclasses `RCTEventEmitter`, so `RoasReactNative.m`'s
+  `RCT_EXTERN_MODULE` base class had to change to match. They are declared
+  independently and a mismatch compiles cleanly, then fails at runtime.
+- `requiresMainQueueSetup` is deliberately **not** `override` —
+  `RCTEventEmitter` does not implement it; it is an optional `RCTBridgeModule`
+  protocol method.
+
+Expect at least one real issue beyond those. That is what happened getting
+Android working (see the three bugs above), and the Flutter bridge's first iOS
+run found two device-only bugs — a swallowed ATT prompt, and `last_update_at`
+present in the Simulator but absent on real hardware. A bridge no toolchain has
+compiled should not be assumed correct.
+
+Universal Links are the one path still not wired: a real ad click opens an
+`https://` link, which needs the Associated Domains capability on the target and
+an `apple-app-site-association` file hosted on the domain. The custom scheme
+above is a QA convenience, not a substitute.

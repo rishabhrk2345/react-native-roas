@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import {
   Button,
   Linking,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -190,6 +191,66 @@ function AppContent() {
           }
         />
       </View>
+
+      {/* The three iOS-only methods. Shown on Android too, where each is an
+          explicit native no-op — that is the bridge's design (index.js never
+          branches on platform), and seeing them resolve to null on Android is
+          itself worth being able to check. Mirrors the ATT and appAccountToken
+          buttons in roas-sensor-flutter's example. */}
+      <View style={styles.row}>
+        <Button
+          title="iOS: request ATT"
+          onPress={() =>
+            Roas.requestTracking()
+              .then(() =>
+                append(
+                  Platform.OS === 'ios'
+                    ? '→ requestTracking() resolved — ATT answered, IDFA bound if granted'
+                    : '→ requestTracking() resolved (no-op on Android)',
+                ),
+              )
+              .catch(err => append(`→ requestTracking failed: ${err}`))
+          }
+        />
+        <Button
+          title="iOS: appAccountToken"
+          onPress={() =>
+            Roas.appAccountToken()
+              .then(token =>
+                // Null on Android is CORRECT, not a failure: Play Billing takes
+                // the visitor id verbatim as obfuscatedAccountId, so there is
+                // nothing to derive. StoreKit needs a UUID, hence this.
+                append(
+                  `appAccountToken = ${token ?? 'null — iOS only, and only after initialize()'}`,
+                ),
+              )
+              .catch(err => append(`→ appAccountToken failed: ${err}`))
+          }
+        />
+      </View>
+      <View style={styles.row}>
+        <Button
+          title="iOS: SKAN value 12 (coarse medium)"
+          onPress={() =>
+            // Fine value 0–63; its meaning is the site's SKAN schema, which
+            // lives server-side. coarse is sent because below Apple's
+            // install-volume privacy threshold the fine value is withheld
+            // entirely and coarse is all that survives the postback.
+            // lockWindow left false — true would post immediately and discard
+            // every later conversion.
+            Roas.updateConversionValue(12, { coarse: 'medium' })
+              .then(() =>
+                append(
+                  Platform.OS === 'ios'
+                    ? '→ updateConversionValue(12, medium) sent to SKAdNetwork'
+                    : '→ updateConversionValue resolved (no-op on Android)',
+                ),
+              )
+              .catch(err => append(`→ updateConversionValue failed: ${err}`))
+          }
+        />
+      </View>
+
       <View style={styles.row}>
         <Button title="RevenueCat: fetch offerings" onPress={fetchOfferings} />
       </View>

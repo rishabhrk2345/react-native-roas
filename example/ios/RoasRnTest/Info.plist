@@ -38,6 +38,34 @@
 	<string></string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
+	<!-- Required before the App Tracking Transparency prompt may be shown. iOS
+	     does not merely suppress the prompt without it — it TERMINATES the app
+	     the moment ATTrackingManager.requestTrackingAuthorization is called, so
+	     a first launch on a device would have crashed rather than degraded. The
+	     SDK asks ~0.6s after configure() unless the app passes
+	     requestTrackingAuthorization: false, so the default path hits this on
+	     launch one. Same wording as roas-sensor-flutter's example, so someone
+	     comparing the two apps sees one product. -->
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Used to measure which ads brought you here.</string>
+	<!-- Custom-scheme deep links: the iOS twin of the roasrn://open
+	     intent-filter in the Android manifest. Lets the sample exercise
+	     Roas.handleDeepLink() with
+	         xcrun simctl openurl booted "roasrn://open?rsclid=test123"
+	     and no hosted apple-app-site-association. A real ad click arrives as a
+	     Universal Link instead, which additionally needs the Associated Domains
+	     capability and that file hosted on the domain — not set up here. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.roasrntest.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>roasrn</string>
+			</array>
+		</dict>
+	</array>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>arm64</string>
