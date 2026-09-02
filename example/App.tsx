@@ -5,7 +5,7 @@
  *
  * FILL IN THE THREE VALUES BELOW before running.
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Button,
   Linking,
@@ -57,6 +57,25 @@ function AppContent() {
 
   const append = (line: string) => setLog(prev => [...prev, line]);
 
+  // Hoisted out of the effect below so the "Simulate deep link" button can call
+  // the exact same path a real link takes — if the button had its own copy, it
+  // could keep passing while the real wiring rotted.
+  //
+  // useCallback with no deps is safe here: `append` only ever calls setLog with
+  // the functional updater, so it reads no captured state.
+  const handleLink = useCallback((url: string) => {
+    Roas.handleDeepLink(url)
+      .then(() => {
+        const hasClickId = /[?&](rsclid|gclid|fbclid)=/.test(url);
+        append(
+          `→ handleDeepLink(${url}) sent` +
+            (hasClickId ? '' : ' — no click id in it, so a no-op natively'),
+        );
+      })
+      .catch(err => append(`→ handleDeepLink failed: ${err}`));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     // Every beacon delivery attempt, surfaced in the on-screen log. Subscribed
     // BEFORE initialize() so the install beacon's own delivery is caught —
@@ -89,24 +108,17 @@ function AppContent() {
       })
       .catch(err => append(`→ initialize() failed: ${err}`));
 
-    // Deep-link wiring — the ONLY thing in this sample that exercises
-    // Roas.handleDeepLink(). Without it the deep-link → rsclid → backend
-    // TouchPoint path (the Android twin of a Play install referrer, but for a
-    // LATER open of an app that is already installed) has no way to be
+    // Deep-link wiring — with the button below, the only thing in this sample
+    // that exercises Roas.handleDeepLink(). Without it the deep-link → rsclid →
+    // backend TouchPoint path (the Android twin of a Play install referrer, but
+    // for a LATER open of an app that is already installed) has no way to be
     // verified: the URL never reaches the SDK at all. Mirrors the Flutter
     // example's app_links wiring, using RN's built-in Linking — no extra
     // dependency needed.
-    const handleLink = (url: string) => {
-      Roas.handleDeepLink(url)
-        .then(() => {
-          const hasClickId = /[?&](rsclid|gclid|fbclid)=/.test(url);
-          append(
-            `→ handleDeepLink(${url}) sent` +
-              (hasClickId ? '' : ' — no click id in it, so a no-op natively'),
-          );
-        })
-        .catch(err => append(`→ handleDeepLink failed: ${err}`));
-    };
+    //
+    // On iOS this only works because AppDelegate forwards openURL and
+    // continueUserActivity into RCTLinkingManager; without those the two
+    // subscriptions below are dead code there.
 
     // Cold start: the OS launched this app FROM a link tap, before anything
     // here was listening.
@@ -229,6 +241,27 @@ function AppContent() {
         />
       </View>
       <View style={styles.row}>
+        <Button
+          title="Simulate deep link"
+          // Calls handleLink directly, exactly as a real tap on
+          // roasrn://open?rsclid=... would — both paths end at the same
+          // function, so this cannot pass while the real wiring is broken.
+          //
+          // It bypasses the OS deliberately, which is the point on iOS: it
+          // exercises Roas.handleDeepLink() without a Mac, simctl, or the
+          // AppDelegate forwarding being correct yet. To trigger it through a
+          // REAL link instead:
+          //   Android: adb shell am start -a android.intent.action.VIEW \
+          //              -d "roasrn://open?rsclid=test123"
+          //   iOS:     xcrun simctl openurl booted "roasrn://open?rsclid=test123"
+          // Only the real form proves the intent-filter / CFBundleURLTypes and
+          // the AppDelegate hooks; this button proves everything above them.
+          onPress={() =>
+            handleLink(
+              'roasrn://open?rsclid=manual-test-123&utm_source=manual&utm_medium=button',
+            )
+          }
+        />
         <Button
           title="iOS: SKAN value 12 (coarse medium)"
           onPress={() =>

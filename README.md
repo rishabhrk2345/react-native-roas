@@ -75,6 +75,27 @@ surface.
 - The **`v0.1.5` tag predates `example/`**, so a checkout of that tag has no
   sample app. Next release should re-tag.
 
+### Parity with `roas_flutter`, checked rather than assumed
+
+Both bridges expose the same 10 methods with **identical argument shapes**, wrap
+the same two natives (`com.roassensor:roas` 0.1.6, `RoasSensor ~> 0.1.7`), and
+neither repo carries a CHANGELOG, LICENSE, lint config or CI. Where they differ:
+
+| | `roas_flutter` | this |
+|---|---|---|
+| Distinct tests | 12 | 18 (28 reported; one block is parameterised 10 ways) |
+| Example buttons | 7 | 9 — this one can also fire a SKAN value |
+| Real Play-Store installs | **34** | **0** |
+| iOS run on a device | **yes** — 36 fields, ATT, ASA, signed beacons | **never compiled** |
+
+The two rows that matter are the last two. Everything above them is level.
+
+`roas_flutter`'s suite tests four platform-branching behaviours this one has no
+analogue for (`requestTracking` is a Dart-side no-op on Android there, and
+reaches the channel on iOS). That is not a gap here: this bridge deliberately
+does not branch in JS — Android answers those methods with an explicit native
+null — so there is no JS-side branch to test.
+
 ## ✅ Verified end to end (Android)
 
 This was built into a real RN 0.86 app (`example/`, the app in this repo),

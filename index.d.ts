@@ -83,6 +83,19 @@ export declare const RoasLogLevel: {
 };
 
 /**
+ * The values `setLogLevel` accepts.
+ *
+ * Named as a union rather than leaving the parameter `string`, so a typo is a
+ * compile error instead of a silent downgrade: `RoasLogLevel.valueOf()` on the
+ * Kotlin side and the `switch` in `RoasReactNative.swift` both fall back to
+ * ERROR on anything they do not recognise, so `setLogLevel('debug')` — wrong
+ * case — would quietly leave logging at ERROR while reading as if it had
+ * enabled DEBUG. `roas_flutter` gets this for free from a Dart enum; this is
+ * the TypeScript equivalent.
+ */
+export type RoasLogLevelValue = 'NONE' | 'ERROR' | 'DEBUG';
+
+/**
  * Property keys ROASSensor understands in `track()`, mirroring native
  * `RoasProps.kt`. `PRODUCT_ID` must be the same identifier the purchase will
  * arrive with, or the funnel cannot line the two up; `PRODUCT_NAME` is display
@@ -106,7 +119,7 @@ export declare const Roas: {
   identify(options: RoasIdentifyOptions): Promise<void>;
   track(event: string, properties?: Record<string, unknown>): Promise<void>;
   handleDeepLink(url: string): Promise<void>;
-  setLogLevel(level: string): Promise<void>;
+  setLogLevel(level: RoasLogLevelValue): Promise<void>;
   /** **iOS only** (a no-op on Android). Resolves once the user has answered. */
   requestTracking(): Promise<void>;
   /** **iOS only** (a no-op on Android). `value` is the fine value, 0–63. */
