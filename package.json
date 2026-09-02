@@ -7,7 +7,8 @@
   "files": [
     "index.js",
     "index.d.ts",
-    "android",
+    "android/build.gradle",
+    "android/src",
     "ios",
     "react-native-roas.podspec",
     "README.md"
@@ -19,8 +20,17 @@
     "attribution",
     "tracking"
   ],
+  "scripts": {
+    "test": "jest"
+  },
   "peerDependencies": {
     "react-native": "*"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/preset-env": "^7.26.0",
+    "babel-jest": "^29.7.0",
+    "jest": "^29.7.0"
   },
   "license": "UNLICENSED"
 }

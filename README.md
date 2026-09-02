@@ -350,6 +350,38 @@ A beacon that fails here is not necessarily lost: the native queue is persisted
 and retries on a later launch. Call `remove()` when you are done; the native
 callback is torn down when the last listener goes away.
 
+## Unit tests
+
+```bash
+npm install
+npm test
+```
+
+28 contract tests over the JS half, mirroring `roas_flutter`'s
+`test/roas_flutter_test.dart`. They pin the **exact payload** each method hands
+the native module, because that boundary has already produced one production
+bug: `Roas.kt`'s own comments record a parameter added mid-list silently
+rebinding every positional call one slot along — beacons signed with a customer
+id, posted to the wrong host, and it still compiled. This bridge sends named
+objects to make that impossible, and these tests are what keep it that way.
+
+`react-native` is a peerDependency and is **not** installed to run them.
+`jest.config.js` maps the import to `test/reactNativeMock.js` instead, so the
+tests stay about this bridge's contract rather than about whichever RN version
+an install happened to pin, and the package never carries a copy of the
+framework it plugs into.
+
+Beyond the Flutter suite's coverage, these also pin the RN-specific hazards:
+the delivery listeners must share **one** `NativeEventEmitter` (a second one
+refcounts separately on the native side, so the last unsubscribe from one could
+clear the SDK callback the other is still listening on), and every method must
+throw a clear "isn't linked" error when autolinking has not run — a bridge that
+silently no-ops looks exactly like an app with no traffic.
+
+The suite is mutation-checked: flipping the `requestTrackingAuthorization`
+default, dropping the emitter cache, and renaming a key in the `initialize`
+payload each fail exactly one test and nothing else.
+
 ## Testing this yourself
 
 `../RoasRnTest` (sibling folder) is the real, working test app used for the
