@@ -16,7 +16,7 @@ implementations.
 
 ## ✅ Verified end to end (Android)
 
-This was built into a real RN 0.86 app (`RoasRnTest`, a sibling test project),
+This was built into a real RN 0.86 app (`example/`, the app in this repo),
 proven on both an **emulator** and a **physical device** (Realme RMX1941,
 Android 9, over the same LAN as the backend) — not just compiled:
 
@@ -28,7 +28,7 @@ Android 9, over the same LAN as the backend) — not just compiled:
   the physical-device run.
 
 **Deep links are verified too**, on bridge 0.1.5 against native 0.1.6 (emulator,
-Android 17, local backend). `RoasRnTest` previously had no `Linking` wiring at
+Android 17, local backend). The example app previously had no `Linking` wiring at
 all, so `handleDeepLink()` was the one bridge method nothing ever called; it now
 has a `roasrn://open` intent-filter and both cold- and warm-start wiring,
 mirroring the Flutter example's `roassample://open`. A real click was minted
@@ -56,7 +56,7 @@ What's *not* yet verified on Android: a real Play Store install (the
 referrer only works on a genuine Play-mediated install, never
 `run-android`'s USB/emulator deploy — see
 `docs/play-console-testing-react-native.md` in the main repo), and a real
-RevenueCat purchase (see "RevenueCat wiring" below — `RoasRnTest` is wired
+RevenueCat purchase (see "RevenueCat wiring" below — the example is wired
 and builds cleanly, but no RevenueCat account has posted a webhook to this
 backend yet).
 
@@ -78,9 +78,9 @@ top of `android/build.gradle` are the whole change. Note this does **not** hold
 the iOS half back — RoasSensor 0.1.7 is tagged and resolvable, and is a hard
 floor for this release.
 
-## RevenueCat wiring (`RoasRnTest`)
+## RevenueCat wiring (`example/`)
 
-`RoasRnTest/App.tsx` now also configures RevenueCat's own React Native SDK
+`example/App.tsx` now also configures RevenueCat's own React Native SDK
 (`react-native-purchases`), threading `Roas.visitorId()` in as `appUserID` so
 a purchase attributes back to the install that drove it — mirrors
 `sample/MainActivity.kt`'s wiring exactly. Confirmed to type-check (`tsc
@@ -88,7 +88,7 @@ a purchase attributes back to the install that drove it — mirrors
 succeeds); **not yet run against a real RevenueCat account** — fill in
 `REVENUECAT_API_KEY` in `App.tsx` with your project's key once you've signed
 up, then use the "RevenueCat: fetch offerings" / "Buy: ..." buttons the same
-way as the native sample. `RoasRnTest`'s `minSdkVersion` (24) already clears
+way as the native sample. The example's `minSdkVersion` (24) already clears
 RevenueCat's Android floor (23), so no bump was needed there.
 
 ## ⚠️ iOS: bridge written, not yet built or run
@@ -97,7 +97,7 @@ The `ios/` bridge (`RoasReactNative.swift` + `RoasReactNative.m` +
 `react-native-roas.podspec`) is written and mirrors the Android module
 method-for-method, but — unlike Android — **it has not been compiled,
 installed, or run on a device or simulator.** It was written on Windows,
-where there's no Xcode. `RoasRnTest` (the sibling test app) already has its
+where there's no Xcode. `example/` already has its
 own `ios/` folder from RN's default template — someone with a Mac needs to
 add a `RoasSensor` pod source to its `ios/Podfile` (a commented-out line is
 already there, pointing at where to uncomment it), run `pod install`, and
@@ -136,18 +136,20 @@ Three real bugs were caught and fixed getting the *Android* side working:
    request. Pinned to the same already-cached commit
    (`5a38d82779`) the Flutter bridge and native sample use.
 3. **Metro can't resolve a `file:`-linked package's own dependencies.**
-   `node_modules/react-native-roas` is a symlink to a sibling folder outside
-   the app's project root. Metro's default hierarchical `node_modules`
-   lookup walks *up* from the requesting file — from inside a sibling folder,
-   that walk can never reach back down into the app's `node_modules`, so
-   `react-native-roas/index.js`'s own `import {NativeModules} from
-   'react-native'` failed to resolve even though the app clearly has
-   `react-native` installed. Fixed with `watchFolders` +
+   `node_modules/react-native-roas` is a symlink to a folder *outside* the
+   app's project root — the parent, for `example/`'s `file:..`; a sibling, for
+   a consuming app that placed this package next to it. Either way it is off
+   the app's own path, and that is what breaks: Metro's default hierarchical
+   `node_modules` lookup walks *up* from the requesting file, so from outside
+   the app root that walk can never reach back down into the app's
+   `node_modules`. `react-native-roas/index.js`'s own `import {NativeModules}
+   from 'react-native'` therefore failed to resolve even though the app
+   clearly has `react-native` installed. Fixed with `watchFolders` +
    `resolver.unstable_enableSymlinks` + `resolver.extraNodeModules` in the
    consuming app's `metro.config.js` — **this is required in any app that
    consumes this package via a local `file:` link** (not needed once this is
    published to npm properly, where it'd resolve as a normal nested
-   dependency).
+   dependency). `example/metro.config.js` is a working copy to crib from.
 
 ## Install (local package, not yet published)
 
@@ -384,12 +386,28 @@ payload each fail exactly one test and nothing else.
 
 ## Testing this yourself
 
-`../RoasRnTest` (sibling folder) is the real, working test app used for the
-verification above — `App.tsx` has the same four buttons as the native
-sample and the Flutter sample. To run it:
+`example/` is the real, working test app every verification above was done
+with — `App.tsx` has the same buttons as the native Kotlin sample and the
+Flutter sample, so all three are easy to compare side by side.
+
+It lives **inside this repo**, mirroring `roas-sensor-flutter/example/`, and
+depends on its own parent via `"react-native-roas": "file:.."` — the npm
+equivalent of that plugin's `roas_flutter: path: ../`. It used to be a separate
+`RoasRnTest` folder beside this one, which meant the README, `metro.config.js`
+and `package.json` all silently assumed you had cloned two things into one
+parent directory, and nothing said so. It also let the sample drift from the
+bridge it demonstrates: they have to change together (adding
+`onDeliveryResult` required editing both), and across two repos that pairing is
+recorded nowhere.
+
+The Android app id stays `com.roasrntest` and the iOS project folder stays
+`ios/RoasRnTest` — only the location moved. That id is registered in Play
+Console for the install-referrer runbook, and renaming it would orphan the
+listing.
 
 ```bash
-cd RoasRnTest
+cd example
+npm install                     # resolves react-native-roas from file:..
 npx react-native start          # Metro, in one terminal
 npx react-native run-android    # in another, with an emulator/device selected
 ```
@@ -397,7 +415,7 @@ npx react-native run-android    # in another, with an emulator/device selected
 Watch your Django backend for `POST /api/tracking/mobile/first-open|events|identify`
 landing with `200`/`201` — same confirmation as the native and Flutter samples.
 
-One local-testing-only gotcha already handled in `RoasRnTest`'s manifest: the
+One local-testing-only gotcha already handled in the example's manifest: the
 app's `android:usesCleartextTraffic` placeholder needs to resolve to `true`
 for local `http://10.0.2.2:8000` testing to work at all (Android blocks plain
 HTTP by default for apps targeting SDK 28+) — RN's own template already wires
@@ -410,10 +428,10 @@ it; that needs an actual Play Store install.
 
 ### iOS (unverified — needs a Mac)
 
-1. In `RoasRnTest/ios/Podfile`, uncomment the `pod 'RoasSensor', :path =>
+1. In `example/ios/Podfile`, uncomment the `pod 'RoasSensor', :path =>
    ...` line and point it at your local `sdk-ios` checkout.
-2. `cd RoasRnTest/ios && pod install`
-3. Add `NSUserTrackingUsageDescription` to `RoasRnTest/ios/RoasRnTest/Info.plist`
+2. `cd example/ios && pod install`
+3. Add `NSUserTrackingUsageDescription` to `example/ios/RoasRnTest/Info.plist`
    (see "iOS-specific setup" above).
 4. `npx react-native run-ios` (Metro from the Android steps above works for
    either platform — no need to restart it).
