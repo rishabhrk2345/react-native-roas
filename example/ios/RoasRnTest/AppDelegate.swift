@@ -3,18 +3,22 @@ import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
 
-// NOTE FOR THE FIRST MAC BUILD: the deep-link methods at the bottom of
-// AppDelegate use `RCTLinkingManager`. It ships in the React-RCTLinking pod and
-// is normally reachable through the `React` umbrella above with static linking,
-// which is why no extra import is written here. If the compiler reports
-// "cannot find 'RCTLinkingManager' in scope" — most likely under
-// USE_FRAMEWORKS, where each pod becomes its own module — add:
+// The deep-link methods at the bottom use `RCTLinkingManager`, and `import
+// React` above is what supplies it — checked rather than assumed. Its HEADER is
+// a header subspec of React-Core:
+//
+//     React-Core.podspec:  'RCTLinkingHeaders' => 'Libraries/LinkingIOS/*.h'
+//
+// so it belongs to the `React` module even though the separate React-RCTLinking
+// pod carries the .m implementation. That pod's own podspec declares only
+// `*.{m,mm}` as source files, which is the giveaway.
+//
+// If a build under USE_FRAMEWORKS (where each pod becomes its own module)
+// disagrees and reports "cannot find 'RCTLinkingManager' in scope", add:
 //
 //     import React_RCTLinking
 //
-// Authored on a Windows machine, so which of the two the build wants is
-// untested here. It is a one-line fix either way, not a design question — the
-// first Xcode build will say which.
+// One line either way, not a design question.
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
