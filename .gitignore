@@ -1,0 +1,24 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+*.tgz
+
+# Android (Gradle output — android/build alone is ~5MB of .transforms/dex)
+android/.gradle/
+android/build/
+android/.idea/
+android/local.properties
+*.iml
+
+# iOS / CocoaPods
+ios/Pods/
+ios/build/
+*.xcworkspace
+xcuserdata/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
