@@ -151,8 +151,21 @@ dependencies {
     // find com.roassensor:roas:0.1.7", so a source-tree version number is not
     // evidence a coordinate resolves; check the metadata before bumping.
     //
-    // When 0.1.7 does ship, this line and the version note at the top of the
-    // file are the whole change. What is waiting in it: the Vivo authority fix
+    // Publishing 0.1.7 is NOT PLANNED, so 0.1.6 is the pin rather than a
+    // way-station: what follows is a list of accepted limitations, not of
+    // pending fixes. If that decision is revisited, this line and the version
+    // note at the top of the file are the whole change on this side — the work
+    // is written, only unpublished.
+    //
+    // What staying on 0.1.6 costs. The load-bearing one is the OEM readers:
+    // Vivo and Huawei installs attribute no better than they did before the
+    // fallback existed. A PLAY install on such a handset is unaffected, going
+    // through Google's API like any other, which is why this is a reasonable
+    // place to stop. Also measured on a real deep-link touch: referrer_source
+    // arrives EMPTY where iOS sets "deeplink", so a report grouping by source
+    // splits one behaviour across two buckets between the platforms.
+    //
+    // The full contents of 0.1.7: the Vivo authority fix
     // (the store ships as com.vivo.apprecommend on some builds, not
     // com.vivo.appstore) and the <queries> entries without which API 30+ package
     // visibility hid the OEM providers entirely — either bug alone makes the

@@ -14,6 +14,67 @@ hashing, and persisted retry queue a pure-Kotlin or pure-Swift app gets. See
 `Roas.kt` in `sdk-android` and `Roas.swift` in `sdk-ios` for the actual
 implementations.
 
+## Status and remaining work
+
+**Android is complete and verified. iOS is code-complete and has never been
+compiled.** Every method exists on both platforms — the bridge calls all 7
+public methods of `com.roassensor.sdk.Roas` and all 10 of `RoasSensor`, the same
+sets `roas_flutter` calls. What differs between the platforms is assurance, not
+surface.
+
+| | Android | iOS |
+|---|---|---|
+| Bridge code | complete | complete |
+| Compiles | yes | **never attempted** |
+| Runs on a device | yes | no |
+| Beacons reach the backend | yes, 50 fields | no |
+| Unit tests (28, shared) | pass | pass |
+
+### Blocked on access this repo does not have
+
+1. **Compile and run iOS on a Mac.** The largest remaining risk by far. Nothing
+   in `ios/` or `example/ios/` has been through a toolchain — it was all
+   written on Windows. Three known first-build hazards and the full run
+   procedure are in "iOS (unverified — needs a Mac)" below. Budget for finding
+   at least one more: Android's first run surfaced three real bugs, and the
+   Flutter bridge's first iOS run found two that only hardware showed.
+2. **A real Play Store install** (needs Play Console). The install referrer only
+   arrives on a genuine Play-mediated install — never `run-android`. This is the
+   one thing that proves deterministic click → install through this bridge;
+   `roas_flutter` has 34 such installs, this has none. Runbook:
+   `docs/play-console-testing-react-native.md`.
+3. **One signed beacon** (needs the property's `app_signing_secret`). No Android
+   build has ever reported `signed: true` — not through this bridge and not
+   through `roas_flutter` either. That matters because the panel gates
+   `require_signed_beacons` on the observed signed share reaching 100%, and
+   flipping it starts *rejecting* unsigned beacons.
+4. **Universal Links on iOS** (needs a domain + Apple developer account). A real
+   ad click opens an `https://` link, which requires the Associated Domains
+   capability and a hosted `apple-app-site-association`. The `roasrn://` scheme
+   that is wired is a QA convenience, not a substitute.
+
+### Deliberate non-goals
+
+- **Publishing native `com.roassensor:roas` 0.1.7 is not planned.** The pin
+  stays at 0.1.6. See "The Android pin stays at 0.1.6" below for exactly what
+  that costs — the short version is an empty `referrer_source` on deep-link
+  touches and unreachable OEM referrer readers on Vivo/Huawei, neither of which
+  affects the ordinary Play-install path.
+- **Not published to npm.** Consumers use a `file:` link and therefore need the
+  Metro `watchFolders` config described under "Install". Publishing would remove
+  both; nothing else depends on it.
+
+### Smaller, doable here
+
+- A **real RevenueCat purchase** has never posted a webhook to a backend from
+  this app. The wiring is done and type-checks; it needs an account.
+- **`app_set_id` end to end under R8.** The release mapping proves every class
+  the SDK's `proguard.txt` names survives minification, which is the documented
+  failure mode. It does not prove the value arrives from a minified build on a
+  device — that needs the R8 APK installed and a beacon inspected.
+- The **`v0.1.5` tag predates `example/`**, so a checkout of that tag has no
+  sample app. Next release should re-tag.
+
 ## ✅ Verified end to end (Android)
 
 This was built into a real RN 0.86 app (`example/`, the app in this repo),
@@ -46,11 +107,13 @@ through `/api/tracking/c/<slug>` and replayed as a deep link:
 
 One field does *not* arrive: `referrer_source` is empty on a deep-link touch,
 where iOS sets `"deeplink"`. This is **not** a bridge defect and Flutter behaves
-identically — the `.put("referrer_source", "deeplink")` line is part of the
-unpublished native 0.1.7 (same commit as `version = "0.1.7"`). Until that ships,
-any report grouping by source splits one user behaviour across two buckets
-between iOS and Android. It costs no attribution: the click id extracts
-correctly on both.
+identically — the `.put("referrer_source", "deeplink")` line is part of native
+0.1.7 (same commit as `version = "0.1.7"`), which is not published and is not
+planned to be. So this is a **standing limitation**, not one waiting on a
+release: any report grouping by source splits one user behaviour across two
+buckets between iOS and Android. It costs no attribution — the click id
+extracts correctly on both — so the fix is to group by something else, or to
+treat an empty `referrer_source` on an `app_open` as meaning `deeplink`.
 
 What's *not* yet verified on Android: a real Play Store install (the
 referrer only works on a genuine Play-mediated install, never
@@ -70,13 +133,39 @@ nothing above has been re-run on it, so treat the Android verification as
 *carried over* rather than re-proven until someone repeats the emulator +
 device pass.
 
-0.1.6 rather than 0.1.7 because **0.1.7 is not published**: `sdk-android`'s
+**The Android pin stays at 0.1.6, deliberately.** `sdk-android`'s
 `build.gradle.kts` carries `version = "0.1.7"`, but Maven Central's metadata
-stops at 0.1.6, and pinning 0.1.7 fails the build with "Could not find
-com.roassensor:roas:0.1.7". Once it ships, the pin and the version note at the
-top of `android/build.gradle` are the whole change. Note this does **not** hold
-the iOS half back — RoasSensor 0.1.7 is tagged and resolvable, and is a hard
-floor for this release.
+stops at 0.1.6 and pinning 0.1.7 fails the build outright with "Could not find
+com.roassensor:roas:0.1.7". Publishing 0.1.7 is **not planned for now**, so
+0.1.6 is the pin rather than a way-station — treat what follows as accepted
+limitations, not pending fixes.
+
+What that costs, both measured rather than assumed:
+
+- **`referrer_source` is empty on every deep-link touch** (see above), where
+  iOS sets `"deeplink"`. Any report grouping by source splits one user
+  behaviour across two buckets between the platforms.
+- **The OEM install-referrer readers are unreachable on Vivo and Huawei.** The
+  0.1.7 fixes are the `com.vivo.apprecommend` authority and the `<queries>`
+  entries; without them, API 30+ package visibility hides the providers, which
+  makes those readers dead code in any app targeting a modern SDK. Installs
+  from those OEM stores therefore attribute no better than they did before the
+  fallback existed. A *Play* install on such a handset is unaffected — it goes
+  through Google's API like any other.
+- **Click-injection checks run on device-clock values only.** 0.1.7 adds
+  Google's server-side referrer timestamps alongside the client pair; without
+  them the check is forgeable by setting the phone's clock.
+- No `network_type` / `is_vpn`, and no PackageManager install/update times.
+
+None of these cost attribution on the ordinary Play-install path, which is why
+0.1.6 is a reasonable place to stop. If that calculus changes, the pin and the
+version note at the top of `android/build.gradle` are the whole change on this
+side — the work is already written, only unpublished.
+
+This does **not** hold the iOS half back: `RoasSensor` 0.1.7 *is* tagged and
+resolvable on GitHub, and is a hard floor for this release. The two natives
+sitting on different numbers is expected, and is why this bridge's version
+tracks neither of them.
 
 ## RevenueCat wiring (`example/`)
 
