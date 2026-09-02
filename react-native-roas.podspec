@@ -6,7 +6,15 @@ Pod::Spec.new do |s|
   s.name         = 'react-native-roas'
   s.version      = package['version']
   s.summary      = package['description']
-  s.homepage     = 'https://github.com/harsh-vasundhara/react-native-roas'
+  # THIS package's repo. It named harsh-vasundhara/react-native-roas, which was
+  # a guess made before this package had a repo at all — that account owns
+  # roas-sensor-flutter, so it looked like the house style. The SDKs are in fact
+  # split across two accounts: Roas-ios-SDK and this one live under
+  # rishabhrk2345, roas-sensor-flutter under harsh-vasundhara. The guessed URL
+  # was a 404, which is the same wrong turn roas-sensor-flutter's podspec once
+  # had (it pointed at the native Android SDK) and the worst one to leave in a
+  # package whose homepage is where someone goes to find out what it is.
+  s.homepage     = 'https://github.com/rishabhrk2345/react-native-roas'
   s.license      = package['license']
   s.author       = { 'ROASSensor' => 'support@roassensor.com' }
   s.platforms    = { :ios => '14.0' }
