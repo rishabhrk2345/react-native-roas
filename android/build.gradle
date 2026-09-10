@@ -18,12 +18,16 @@ group 'com.roassensor.reactnative'
 // react-native-roas.podspec, which is where someone checking them is already
 // looking.
 //
-// 0.1.5 wraps: com.roassensor:roas 0.1.6 (Android), RoasSensor ~> 0.1.7 (iOS).
+// 0.1.6 wraps: com.roassensor:roas 0.1.6 (Android), RoasSensor ~> 0.1.7 (iOS) —
+// the same natives as 0.1.5. What changed is the bridge: 0.1.5's delivery
+// stream (onDeliveryResult) never reached JS on RN's new architecture, and the
+// sample was still on RevenueCat. 0.1.6 is the first release a customer app
+// should pin, and the one the panel's Setup page names.
 // The two natives sitting on different numbers is not an oversight — it is the
 // situation this versioning rule exists for. Android 0.1.7 is not published; see
 // the dependencies block.
 // Keep package.json and react-native-roas.podspec in step.
-version '0.1.5'
+version '0.1.6'
 
 buildscript {
     ext.kotlin_version = '1.9.24'

@@ -153,11 +153,12 @@ function AppContent() {
   //
   // Two different shapes because the two stores accept different things:
   //   Android — Play Billing's `obfuscatedAccountId` is a free string and takes
-  //             the raw visitor id verbatim (react-native-iap:
-  //             `requestPurchase({ skus, obfuscatedAccountIdAndroid: vid })`).
+  //             the raw visitor id verbatim. react-native-iap 16:
+  //             `requestPurchase({ type, request: { google: { skus, obfuscatedAccountId: vid } } })`
+  //             (<= 12 took a flat `obfuscatedAccountIdAndroid` on the call).
   //   iOS     — StoreKit's `appAccountToken` must be a UUID, so the iOS SDK
-  //             derives one from the vid and the backend reconstructs it
-  //             (react-native-iap: `requestPurchase({ sku, appAccountToken })`).
+  //             derives one from the vid and the backend reconstructs it.
+  //             react-native-iap 16: `request: { apple: { sku, appAccountToken } }`.
   // A purchase without it still records revenue — as UNATTRIBUTED, while the
   // spend still counts, so ROAS reads low enough to kill a working campaign.
   const showPurchaseId = async () => {

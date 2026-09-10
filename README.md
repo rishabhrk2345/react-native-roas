@@ -80,9 +80,12 @@ the example is prepared for it.
   that costs — the short version is an empty `referrer_source` on deep-link
   touches and unreachable OEM referrer readers on Vivo/Huawei, neither of which
   affects the ordinary Play-install path.
-- **Not published to npm.** Consumers use a `file:` link and therefore need the
-  Metro `watchFolders` config described under "Install". Publishing would remove
-  both; nothing else depends on it.
+- **Not published to npm.** A customer app installs it as a git tag, exactly as
+  Flutter customers install `roas_flutter`:
+  `npm install github:rishabhrk2345/react-native-roas#v0.1.6` — which is what
+  the panel's Setup page prints. A git install lands as a real directory in the
+  app's `node_modules`, so none of the `file:`-link Metro configuration under
+  "Install" applies to it.
 
 ### Smaller, doable here
 
@@ -91,9 +94,9 @@ the example is prepared for it.
   it was pointed at a cleartext host a release build refuses, so no beacon from
   the *minified* build has been inspected yet. Point `ROAS_BASE_URL` at HTTPS,
   `assembleRelease`, and read `app_set_id_hash` off the install row.
-- The **`v0.1.5` tag predates `example/`**, so a checkout of that tag has no
-  sample app. Next release should re-tag — and it should carry the
-  `onDeliveryResult` fix below, which is a bridge change, not an example one.
+- **`v0.1.6`** is the tag a customer app should pin: it is the first with
+  `example/` in it and the first whose `onDeliveryResult` works on the new
+  architecture. `v0.1.5` has that stream dead.
 
 ### Parity with `roas_flutter`, checked rather than assumed
 
@@ -297,9 +300,20 @@ platform it is running on.
                                                                     to the install and its ad click
 ```
 
-1. **Set the id on the purchase.** With `react-native-iap`:
-   `requestPurchase({ skus: [sku], obfuscatedAccountIdAndroid: await Roas.visitorId() })`.
-   Raw Play Billing: `BillingFlowParams.Builder.setObfuscatedAccountId(vid)`.
+1. **Set the id on the purchase.** With `react-native-iap` 16:
+
+   ```js
+   const vid = await Roas.visitorId();
+   await requestPurchase({
+     type: 'subs', // or 'in-app'
+     request: { google: { skus: [sku], obfuscatedAccountId: vid ?? undefined, subscriptionOffers } },
+   });
+   ```
+
+   (`react-native-iap` ≤ 12 took a flat `obfuscatedAccountIdAndroid` on the
+   call; the Purchase it returns reports the value back as
+   `obfuscatedAccountIdAndroid` on every version.) Raw Play Billing:
+   `BillingFlowParams.Builder.setObfuscatedAccountId(vid)`.
    It is a free-form string, so the vid goes in verbatim — no UUID derivation on
    Android, which is why `appAccountToken()` resolves null here.
 2. **Tell ROASSensor your package name** — Setup → your app → `package_name`
@@ -328,7 +342,8 @@ a subscription), so renewals count individually. A licence-tester purchase
 
 The value is `await Roas.appAccountToken()` — a UUID **derived from the visitor
 id**, because StoreKit types `appAccountToken` as a UUID; the backend rebuilds
-the vid from it. With `react-native-iap`: `requestPurchase({ sku, appAccountToken })`.
+the vid from it. With `react-native-iap` 16:
+`requestPurchase({ type, request: { apple: { sku, appAccountToken: token } } })`.
 Then: the site's `bundle_id` must equal the app's (a valid JWS for someone
 else's app is still authentic, so the bundle id is what scopes it), and App
 Store Connect → App Information → App Store Server Notifications → **Version 2**
@@ -404,7 +419,16 @@ Three real bugs were caught and fixed getting the *Android* side working:
    published to npm properly, where it'd resolve as a normal nested
    dependency). `example/metro.config.js` is a working copy to crib from.
 
-## Install (local package, not yet published)
+## Install
+
+For a customer app, pin the git tag — the panel's Setup page prints this line
+with the right version:
+
+```bash
+npm install github:rishabhrk2345/react-native-roas#v0.1.6
+```
+
+For working on the bridge itself, link it locally instead:
 
 ```json
 // package.json
@@ -542,7 +566,7 @@ path:
 
 | Path | Field | Value |
 |---|---|---|
-| Play Billing / `react-native-iap` (Android) | `obfuscatedAccountId` (`obfuscatedAccountIdAndroid`) | `await Roas.visitorId()` |
+| Play Billing / `react-native-iap` (Android) | `obfuscatedAccountId` (`request.google` in iap 16; flat `obfuscatedAccountIdAndroid` in ≤ 12) | `await Roas.visitorId()` |
 | StoreKit / `react-native-iap` (iOS) | `appAccountToken` | `await Roas.appAccountToken()` |
 | RevenueCat (either; still supported, no longer what the sample shows) | `appUserID` | `await Roas.visitorId()` |
 

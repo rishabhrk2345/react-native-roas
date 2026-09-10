@@ -1,6 +1,6 @@
 {
   "name": "react-native-roas",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "React Native bridge for the ROASSensor Android and iOS tracking SDKs (install attribution, funnel events, identity).",
   "main": "index.js",
   "types": "index.d.ts",
