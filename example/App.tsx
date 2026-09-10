@@ -1,9 +1,10 @@
 /**
  * The React Native twin of sample/MainActivity.kt in the native
- * roas-android-sdk repo and roas-flutter/example/lib/main.dart — same
+ * roas-android-sdk repo and roas-sensor-flutter/example/lib/main.dart — same
  * buttons, same values to fill in, so all three are easy to compare.
  *
- * FILL IN THE THREE VALUES BELOW before running.
+ * Nothing to fill in HERE: the backend URL, site key and signing secret come
+ * from `example/.env` (copy `.env.example`). See the note on Config below.
  */
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -18,23 +19,30 @@ import {
   useColorScheme,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Config from 'react-native-config';
 import { Roas, RoasEvent, RoasLogLevel } from 'react-native-roas';
-import Purchases, { LOG_LEVEL, PurchasesPackage } from 'react-native-purchases';
 
-// The emulator's alias for the host machine's localhost, for running against a
-// local `manage.py runserver`. Cleartext http is allowed in debug builds via the
-// RN template's usesCleartextTraffic manifest placeholder, and NOT in release.
+// All three come from `example/.env`, baked in at BUILD time by
+// react-native-config — the RN twin of the Flutter example's
+// `--dart-define=ROAS_APP_SECRET=…`. Editing .env means rebuilding, not just
+// refreshing Metro, exactly as with dart-define.
 //
-// Swap to an ngrok HTTPS tunnel for a physical device or a Play-installed build
-// — 10.0.2.2 resolves on the emulator only:
-//   const BASE_URL = 'https://<your-ngrok>.ngrok-free.dev';
-const BASE_URL = 'http://10.0.2.2:8000';
-const PUBLIC_KEY = '360bd19f-b945-4c44-a410-8f9f14390cce';
+// BASE_URL: 10.0.2.2 (the .env.example default) is the emulator's alias for the
+// host's localhost and resolves nowhere else. Cleartext http is allowed in
+// debug builds via the RN template's usesCleartextTraffic placeholder and NOT
+// in release, so a physical phone or a Play-installed build needs an HTTPS
+// tunnel (`ngrok http 8000`) in .env before building.
+const BASE_URL = Config.ROAS_BASE_URL ?? 'http://10.0.2.2:8000';
+const PUBLIC_KEY = Config.ROAS_PUBLIC_KEY ?? '';
 
-// RevenueCat's public Google API key for this project (Project settings →
-// API keys). Not the same as PUBLIC_KEY above — that one is ours, this one
-// is RevenueCat's.
-const REVENUECAT_API_KEY = 'test_FzaGVLRLGebnvdQzbrWpjQxAKiR';
+// Beacon signing secret — Setup → your app → Beacon signing → "Generate".
+//
+// Empty → undefined: an empty-string secret would make the SDK sign with a key
+// of "", producing a signature the server computes differently and rejects
+// outright as INVALID. Absent must mean absent. Unsigned beacons are accepted
+// until "reject unsigned beacons" is switched on for the site, so forgetting
+// the value degrades to the old behaviour rather than breaking.
+const APP_SECRET = Config.ROAS_APP_SECRET || undefined;
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -48,12 +56,19 @@ function App() {
 
 function AppContent() {
   const insets = useSafeAreaInsets();
+  // Signing state is shown on screen, not just in the log, because the whole
+  // failure mode it guards against is invisible: an unsigned build looks
+  // identical to a signed one from the device, and the difference only shows up
+  // as beacons silently 401ing once the site enforces.
   const [log, setLog] = useState<string[]>([
     'ROASSensor RN sample',
     `baseUrl: ${BASE_URL}`,
+    `site: ${PUBLIC_KEY || 'MISSING — set ROAS_PUBLIC_KEY in example/.env'}`,
+    APP_SECRET
+      ? `signing: ON (secret ${APP_SECRET.length} chars)`
+      : 'signing: OFF (set ROAS_APP_SECRET in example/.env to enable)',
     '',
   ]);
-  const [packages, setPackages] = useState<PurchasesPackage[]>([]);
 
   const append = (line: string) => setLog(prev => [...prev, line]);
 
@@ -90,20 +105,10 @@ function AppContent() {
     // is ERROR, which makes a beacon that never fires look identical to one
     // that succeeded.
     Roas.setLogLevel(RoasLogLevel.DEBUG);
-    Roas.initialize({ publicKey: PUBLIC_KEY, baseUrl: BASE_URL })
+    Roas.initialize({ publicKey: PUBLIC_KEY, baseUrl: BASE_URL, appSecret: APP_SECRET })
       .then(async () => {
         append('→ initialize() resolved');
-        // appUserID = our vid, so the purchase RevenueCat's webhook reports
-        // later carries the exact visitor whose ad click drove the install.
         const vid = await Roas.visitorId();
-        await Purchases.setLogLevel(LOG_LEVEL.DEBUG);
-        // DISABLED for release-build testing. RevenueCat rejects a test-store
-        // key in a release build by launching SimulatedStoreErrorDialogActivity,
-        // which then THROWS on pause — killing the process the instant the app
-        // is backgrounded. That crash masquerades as "the SDK never sent a
-        // beacon". Re-enable with a real Play Store key from the RevenueCat
-        // dashboard.
-        // Purchases.configure({ apiKey: REVENUECAT_API_KEY, appUserID: vid ?? undefined });
         append(`vid = ${vid}`);
       })
       .catch(err => append(`→ initialize() failed: ${err}`));
@@ -137,30 +142,35 @@ function AppContent() {
       delivery.remove();
       linkSub.remove();
     };
-  }, []);
+  }, [handleLink]);
 
-  const fetchOfferings = async () => {
+  // The value a store purchase must carry so the store's server notification
+  // traces back to this install and the ad click behind it. That is the WHOLE
+  // purchase wiring — there is no RevenueCat here any more, for the reason the
+  // Flutter sample dropped it: the store-native path (Play RTDN / App Store
+  // Server Notifications, both signed by the store) is what this product is
+  // moving to, and the sample should show the thing being adopted.
+  //
+  // Two different shapes because the two stores accept different things:
+  //   Android — Play Billing's `obfuscatedAccountId` is a free string and takes
+  //             the raw visitor id verbatim (react-native-iap:
+  //             `requestPurchase({ skus, obfuscatedAccountIdAndroid: vid })`).
+  //   iOS     — StoreKit's `appAccountToken` must be a UUID, so the iOS SDK
+  //             derives one from the vid and the backend reconstructs it
+  //             (react-native-iap: `requestPurchase({ sku, appAccountToken })`).
+  // A purchase without it still records revenue — as UNATTRIBUTED, while the
+  // spend still counts, so ROAS reads low enough to kill a working campaign.
+  const showPurchaseId = async () => {
     try {
-      const offerings = await Purchases.getOfferings();
-      const current = offerings.current;
-      if (!current) {
-        append('→ offerings: none configured yet (check RevenueCat dashboard)');
-        return;
+      if (Platform.OS === 'ios') {
+        const token = await Roas.appAccountToken();
+        append(`→ appAccountToken (StoreKit) = ${token ?? 'null — only after initialize()'}`);
+      } else {
+        const vid = await Roas.visitorId();
+        append(`→ obfuscatedAccountId (Play Billing) = ${vid ?? 'null — only after initialize()'}`);
       }
-      append(`→ offerings: '${current.identifier}' has ${current.availablePackages.length} package(s)`);
-      setPackages(current.availablePackages);
     } catch (err) {
-      append(`→ offerings error: ${err}`);
-    }
-  };
-
-  const buyPackage = async (pkg: PurchasesPackage) => {
-    try {
-      const vid = await Roas.visitorId();
-      await Purchases.purchasePackage(pkg);
-      append(`→ purchase completed: ${pkg.product.identifier} (vid=${vid})`);
-    } catch (err: any) {
-      append(err?.userCancelled ? '→ purchase cancelled' : `→ purchase error: ${err}`);
+      append(`→ purchase id failed: ${err}`);
     }
   };
 
@@ -225,19 +235,12 @@ function AppContent() {
           }
         />
         <Button
-          title="iOS: appAccountToken"
-          onPress={() =>
-            Roas.appAccountToken()
-              .then(token =>
-                // Null on Android is CORRECT, not a failure: Play Billing takes
-                // the visitor id verbatim as obfuscatedAccountId, so there is
-                // nothing to derive. StoreKit needs a UUID, hence this.
-                append(
-                  `appAccountToken = ${token ?? 'null — iOS only, and only after initialize()'}`,
-                ),
-              )
-              .catch(err => append(`→ appAccountToken failed: ${err}`))
-          }
+          // Platform-aware, unlike the Flutter sample's iOS-only "Show
+          // appAccountToken": Android is the platform this bridge is verified
+          // on, so the value it prints there — the raw vid — is the one an
+          // Android integrator actually has to hand to Play Billing.
+          title="Show purchase id (store)"
+          onPress={showPurchaseId}
         />
       </View>
       <View style={styles.row}>
@@ -284,17 +287,6 @@ function AppContent() {
         />
       </View>
 
-      <View style={styles.row}>
-        <Button title="RevenueCat: fetch offerings" onPress={fetchOfferings} />
-      </View>
-      {packages.map(pkg => (
-        <View style={styles.row} key={pkg.identifier}>
-          <Button
-            title={`Buy: ${pkg.identifier} (${pkg.product.priceString})`}
-            onPress={() => buyPackage(pkg)}
-          />
-        </View>
-      ))}
       <ScrollView style={styles.log}>
         {log.map((line, i) => (
           <Text key={i} style={styles.logLine}>

@@ -6,7 +6,6 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableMap
-import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.roassensor.sdk.Roas
 import com.roassensor.sdk.RoasEvent
 import com.roassensor.sdk.RoasLogLevel
@@ -102,9 +101,11 @@ class RoasReactModule(reactContext: ReactApplicationContext) :
             putBoolean("success", success)
             if (error == null) putNull("error") else putString("error", error)
         }
-        context
-            .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-            .emit(DELIVERY_EVENT, payload)
+        // emitDeviceEvent rather than getJSModule(RCTDeviceEventEmitter).emit():
+        // the same thing on the old architecture, and on bridgeless the direct
+        // path rather than a reflective proxy over an interop registry that
+        // the new architecture is scheduled to drop.
+        context.emitDeviceEvent(DELIVERY_EVENT, payload)
     }
 
     @ReactMethod

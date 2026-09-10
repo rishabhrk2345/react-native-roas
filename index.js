@@ -232,8 +232,10 @@ export const Roas = {
 
   /**
    * The stable visitor id for this install (null before initialize() has
-   * run). Pass this to RevenueCat as the `appUserID` so a purchase
-   * attributes back to this install and its ad click.
+   * run). On Android this is the value a purchase must carry — Play Billing's
+   * `obfuscatedAccountId` (RevenueCat: `appUserID`) — so the store's
+   * notification attributes back to this install and its ad click. On iOS
+   * use appAccountToken() instead, which StoreKit requires as a UUID.
    * @returns {Promise<string|null>}
    */
   visitorId() {
@@ -253,7 +255,8 @@ export const Roas = {
 
   /**
    * Record a funnel/behaviour event — never revenue (money only ever
-   * enters through the signed RevenueCat/Stripe webhook).
+   * enters through a store-signed webhook — Play RTDN, App Store Server
+   * Notifications, RevenueCat, Stripe — or the marketer's own server).
    *
    * @param {string} event one of the RoasEvent constants, or any custom name
    * @param {Record<string, unknown>} [properties]

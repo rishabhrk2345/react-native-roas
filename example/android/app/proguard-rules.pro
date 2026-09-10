@@ -8,3 +8,9 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # Add any project specific keep options here:
+
+# react-native-config reads BuildConfig reflectively. Under R8 (minifyEnabled
+# is on for release above) the class is stripped and every Config.<KEY> reads
+# undefined — so a release build would silently go out UNSIGNED and pointed at
+# no backend, which on the device looks identical to a working app.
+-keep class com.roasrntest.BuildConfig { *; }

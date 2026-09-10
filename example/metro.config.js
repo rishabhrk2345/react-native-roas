@@ -1,6 +1,9 @@
 const path = require('path');
 const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
 
+// A path as a literal regex source (Windows backslashes included), for blockList.
+const escapeForRegExp = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /**
  * Metro configuration
  * https://reactnative.dev/docs/metro
@@ -22,6 +25,19 @@ const config = {
   watchFolders: [path.resolve(__dirname, '..')],
   resolver: {
     unstable_enableSymlinks: true,
+    // Never bundle a react/react-native that lives under the BRIDGE's own
+    // node_modules. extraNodeModules below is only a fallback for when the
+    // hierarchical lookup finds nothing — but from react-native-roas/index.js
+    // the walk reaches ../node_modules first, so a second copy there (npm 7+
+    // auto-installs the `react-native: "*"` peer) wins silently. Two copies
+    // means two `RCTDeviceEventEmitter` instances: the bridge's listener sat
+    // on one while native emitted into the other, and `onDeliveryResult` was
+    // dead while every beacon returned 201. The bridge's .npmrc stops the
+    // install; this stops the bundle even if someone installs anyway.
+    blockList: [
+      new RegExp(escapeForRegExp(path.resolve(__dirname, '..', 'node_modules', 'react')) + '[\\\\/].*'),
+      new RegExp(escapeForRegExp(path.resolve(__dirname, '..', 'node_modules', 'react-native')) + '[\\\\/].*'),
+    ],
     extraNodeModules: {
       react: path.resolve(__dirname, 'node_modules/react'),
       'react-native': path.resolve(__dirname, 'node_modules/react-native'),

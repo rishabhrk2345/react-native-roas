@@ -16,18 +16,23 @@ implementations.
 
 ## Status and remaining work
 
-**Android is complete and verified. iOS is code-complete and has never been
-compiled.** Every method exists on both platforms — the bridge calls all 7
-public methods of `com.roassensor.sdk.Roas` and all 10 of `RoasSensor`, the same
-sets `roas_flutter` calls. What differs between the platforms is assurance, not
-surface.
+**Android is complete and verified end to end — install, signed beacons,
+identify, events, deep links, purchase, refund. iOS is code-complete and has
+never been compiled.** Every method exists on both platforms — the bridge calls
+all 7 public methods of `com.roassensor.sdk.Roas` and all 10 of `RoasSensor`,
+the same sets `roas_flutter` calls. What differs between the platforms is
+assurance, not surface.
 
 | | Android | iOS |
 |---|---|---|
 | Bridge code | complete | complete |
-| Compiles | yes | **not yet attempted** |
+| Compiles | yes (debug + R8 release) | **not yet attempted** |
 | Runs on a device | yes | no |
-| Beacons reach the backend | yes, 50 fields | no |
+| Beacons reach the backend | yes, 59 fields, **signed** | no |
+| Delivery stream (`onDeliveryResult`) | yes — was silent, fixed 2026-09-10 | no |
+| Deep link → click id → campaign | yes, cold + warm | no |
+| Purchase → attributed → refund → net zero | yes (server-to-server); Play RTDN parsed + acknowledged live, booking covered by backend tests | no |
+| Real Play-Store install | **no** — needs Play Console | n/a |
 | Unit tests (28, shared) | pass | pass |
 
 ### Next up — the iOS build
@@ -49,13 +54,20 @@ the example is prepared for it.
 2. **A real Play Store install** (needs Play Console). The install referrer only
    arrives on a genuine Play-mediated install — never `run-android`. This is the
    one thing that proves deterministic click → install through this bridge;
-   `roas_flutter` has 34 such installs, this has none. Runbook:
+   `roas_flutter` has 34 such installs, this has none. The click side is already
+   proven: `/c/rn-sample-summer` minted an `rsclid` and 302'd to the Play
+   `intent://` URL carrying it as `referrer=` — what is unproven is only Play
+   handing it back. A release AAB is built (`example/android/app/build/outputs/
+   bundle/release/app-release.aab`); set `ROAS_BASE_URL` in `example/.env` to a
+   reachable HTTPS host, rebuild, and follow
    `docs/play-console-testing-react-native.md`.
-3. **One signed beacon** (needs the property's `app_signing_secret`). No Android
-   build has ever reported `signed: true` — not through this bridge and not
-   through `roas_flutter` either. That matters because the panel gates
-   `require_signed_beacons` on the observed signed share reaching 100%, and
-   flipping it starts *rejecting* unsigned beacons.
+3. **A real Play purchase** (needs the same Play listing, a product, and the
+   site's Play Developer API service account). The value the purchase must carry
+   — `obfuscatedAccountId = visitorId()` — is printed by the sample's "Show
+   purchase id" button; the RTDN webhook has been hit live and answers
+   `resolved: false` without the service account, exactly as designed. Until a
+   real purchase exists, the booking path is proven by the backend's Play RTDN
+   tests (mocked Developer API), which are payload-identical for RN.
 4. **Universal Links on iOS** (needs a domain + Apple developer account). A real
    ad click opens an `https://` link, which requires the Associated Domains
    capability and a hosted `apple-app-site-association`. The `roasrn://` scheme
@@ -74,14 +86,14 @@ the example is prepared for it.
 
 ### Smaller, doable here
 
-- A **real RevenueCat purchase** has never posted a webhook to a backend from
-  this app. The wiring is done and type-checks; it needs an account.
-- **`app_set_id` end to end under R8.** The release mapping proves every class
-  the SDK's `proguard.txt` names survives minification, which is the documented
-  failure mode. It does not prove the value arrives from a minified build on a
-  device — that needs the R8 APK installed and a beacon inspected.
+- **`app_set_id` end to end under R8.** The release build runs on a device
+  (signing ON, `Config` intact — see the keep rule in `proguard-rules.pro`), but
+  it was pointed at a cleartext host a release build refuses, so no beacon from
+  the *minified* build has been inspected yet. Point `ROAS_BASE_URL` at HTTPS,
+  `assembleRelease`, and read `app_set_id_hash` off the install row.
 - The **`v0.1.5` tag predates `example/`**, so a checkout of that tag has no
-  sample app. Next release should re-tag.
+  sample app. Next release should re-tag — and it should carry the
+  `onDeliveryResult` fix below, which is a bridge change, not an example one.
 
 ### Parity with `roas_flutter`, checked rather than assumed
 
@@ -93,10 +105,17 @@ neither repo carries a CHANGELOG, LICENSE, lint config or CI. Where they differ:
 |---|---|---|
 | Distinct tests | 12 | 18 (28 reported; one block is parameterised 10 ways) |
 | Example buttons | 7 | 9 — this one can also fire a SKAN value |
+| Own backend site for the sample | yes ("ROAS Flutter Sample") | yes ("ROAS RN Sample", `com.roasrntest`) |
+| Config from the environment | `--dart-define` | `example/.env` via react-native-config |
+| Purchase wiring in the sample | store-native (`appAccountToken` button) | store-native (`Show purchase id`, platform-aware) |
+| Signed Android beacons seen live | **no** | **yes** — every beacon in the 2026-09-10 run |
 | Real Play-Store installs | **34** | **0** |
 | iOS run on a device | **yes** — 36 fields, ATT, ASA, signed beacons | **not yet built** — same Mac, next session |
 
-The two rows that matter are the last two. Everything above them is level.
+The two rows that matter are the last two. Everything above them is level, and
+on signed beacons this bridge is ahead: the panel gates `require_signed_beacons`
+on the observed signed share reaching 100%, and until this run no Android build
+of either bridge had produced a single one.
 
 `roas_flutter`'s suite tests four platform-branching behaviours this one has no
 analogue for (`requestTracking` is a Dart-side no-op on Android there, and
@@ -144,23 +163,73 @@ buckets between iOS and Android. It costs no attribution — the click id
 extracts correctly on both — so the fix is to group by something else, or to
 treat an empty `referrer_source` on an `app_open` as meaning `deeplink`.
 
-What's *not* yet verified on Android: a real Play Store install (the
-referrer only works on a genuine Play-mediated install, never
-`run-android`'s USB/emulator deploy — see
-`docs/play-console-testing-react-native.md` in the main repo), and a real
-RevenueCat purchase (see "RevenueCat wiring" below — the example is wired
-and builds cleanly, but no RevenueCat account has posted a webhook to this
-backend yet).
+### Re-verified on native 0.1.6 — the full chain, 2026-09-10
 
-**That run was against `com.roassensor:roas` 0.1.4.** Bridge 0.1.5 moves the pin
-to **0.1.6** — two native releases of referrer, timestamp and identity fixes, all
-of them silent from JS (see the changelog in `android/build.gradle`; the one to
-care about most is `ts` on every beacon, without which an install that happened
-offline is recorded on the day the queue flushed rather than the day it
-happened). The bump is a straight dependency change with no API break, but
-nothing above has been re-run on it, so treat the Android verification as
-*carried over* rather than re-proven until someone repeats the emulator +
-device pass.
+The earlier runs were against native 0.1.4; the 0.1.6 pin had been carried over
+unproven. This pass re-ran everything on 0.1.6 (Android 17 emulator, local
+backend, debug build via Metro, then the R8 release build), against the sample's
+**own** backend site — "ROAS RN Sample", `com.roasrntest` — rather than the
+native Kotlin sample's, for the reason `roas_flutter` got one: sample installs
+must not sit inside another app's retention, fraud and ROAS numbers.
+
+| Leg | Result |
+|---|---|
+| Fresh install → `/mobile/first-open` | `201`; **59 fields** on the row, including `app_set_id_hash`, `device_id_hash`, `install_referrer`, `referrer_source=google`, `referrer_status=OK_ORGANIC`, `network_type`, `is_vpn`, `first_install_at`, `security_patch`, `integrity_signals=debuggable,hardware,product` (`is_emulator=true`, correctly) |
+| **Signed beacons** | `signed=True` on every row — install, opens, events, identify. The first signed Android beacons through *either* bridge |
+| `track()` ×2, `identify()` | `201`, `201`, `200`; rows carry the same vid |
+| `onDeliveryResult` | `[delivery] /api/tracking/mobile/events ok` etc. on screen for every beacon — **after the fix below; it was silent before** |
+| Ad click | `GET /c/rn-sample-summer` minted `rsclid=foWxd952wZ19oYAO`, logged a `landing` touchpoint with all four `utm_*`, and 302'd to `intent://details?id=com.roasrntest&referrer=rsclid%3D…` |
+| Deep link, **warm** (`am start -a VIEW` onto the running app) | `app_open` with `click_id=foWxd952wZ19oYAO`, `click_id_type=rsclid`, `utm_source=facebook`, `utm_medium=paid`, `utm_campaign=rn_summer`, `utm_content=video_a`, signed, same vid |
+| Deep link, **cold** (force-stop, then the link is the launch intent) | identical row |
+| Background → foreground | the install row's `engagement_ms` went `0 → 141449` via the `pv_id` upsert — one row, not two |
+| **Purchase** (`POST /api/tracking/conversions`, `X-Api-Key`, `vid` = the install's) | `AttributionResult`: `method=vid`, `channel=facebook`, `campaign=rn_summer`, `creative=video_a`, `credit=1.0`, `amount=49.00` — credited to the deep-link touch |
+| Same order posted again | `created: false`, no second row |
+| **Refund** (`refund_of_external_id`) | mirrored row at `-49.00`, same campaign; net attributed **0.00** |
+| Play RTDN (`POST /webhooks/play/<key>`, live) | parsed, package-scoped (`com.other` → 400), acknowledged `resolved: false` — the designed degraded path with no Play Developer API credentials on the site. The booking path (`obfuscatedExternalAccountId` → vid → campaign, renewals, licence-tester exclusion) passes the backend's 8 journey tests, which post the same payload this app would |
+| R8 release build, installed fresh | boots, `signing: ON`, site key present — the `BuildConfig` keep rule holds; and the delivery stream reported the one beacon that *couldn't* go (`Cleartext HTTP traffic to 10.0.2.2 not permitted`), which is precisely the failure it exists to surface |
+
+Empty fields on the install row were all expected: click/campaign columns
+(organic emulator install, no Play referrer to carry an `rsclid`), geo (localhost
+IP), `idfv` (iOS), `latitude`/`longitude` (no location permission),
+`installer_package` (adb, not Play).
+
+#### The bug this run found: `onDeliveryResult` was dead
+
+Every beacon returned `201`, and not one delivery reached JS. The native side was
+emitting (confirmed with logging), `addListener` was reaching the module, and
+nothing was thrown. The cause was **two copies of `react-native` in the bundle**:
+npm 7+ auto-installs the `react-native: "*"` peer into this package's own
+`node_modules` (0.87.1, on a 0.86.2 app), and Metro's hierarchical lookup from
+`react-native-roas/index.js` finds *that* copy before the app's — `extraNodeModules`
+is only a fallback for when the walk finds nothing. Two copies means two
+`RCTDeviceEventEmitter` instances: the listener sat on one, native emitted into
+the other. Method calls were unaffected because `NativeModules` proxies to one
+global registry from either copy, which is why the bridge looked fully working.
+
+Fixed at three layers, because any one alone is a regression waiting to happen:
+
+- **`.npmrc` — `legacy-peer-deps=true`**, so `npm install` in this package no
+  longer materialises the peer. The lockfile shrank by ~1,700 lines.
+- **`example/metro.config.js` — a `blockList`** for `react` and `react-native`
+  under the bridge's `node_modules`, so a stray copy is never bundled even if
+  someone installs one.
+- **`RoasReactModule.emitDelivery` now calls `context.emitDeviceEvent()`** rather
+  than `getJSModule(RCTDeviceEventEmitter).emit()`: the same thing on the old
+  architecture, and on bridgeless the direct path rather than a reflective proxy
+  over an interop registry the new architecture is scheduled to drop.
+
+A consumer linking this package with `file:` needs the second of those in their
+own Metro config (see "Install"); a published npm package would not, since the
+peer resolves from the app's tree.
+
+One unexplained observation, recorded so nobody re-diagnoses it: once, right
+after the very first `adb install -r` over the running app, every button fired in
+layout order about 1.4 s apart with nothing touching the screen — the beacons
+show it (`add_to_cart`, `begin_checkout`, `identify`, then an `app_open` carrying
+the "Simulate deep link" button's `manual-test-123`). It never recurred across
+several further reinstalls and force-stops. It is not the SDK's queue (the queue
+was empty and `session_sequence` shows fresh enqueues) and not this bridge; it
+looks like an emulator-side accessibility sweep. Ignore it if you see it once.
 
 **The Android pin stays at 0.1.6, deliberately.** `sdk-android`'s
 `build.gradle.kts` carries `version = "0.1.7"`, but Maven Central's metadata
@@ -196,18 +265,84 @@ resolvable on GitHub, and is a hard floor for this release. The two natives
 sitting on different numbers is expected, and is why this bridge's version
 tracks neither of them.
 
-## RevenueCat wiring (`example/`)
+## Purchase paths (`example/` is store-native, like `roas_flutter`)
 
-`example/App.tsx` now also configures RevenueCat's own React Native SDK
-(`react-native-purchases`), threading `Roas.visitorId()` in as `appUserID` so
-a purchase attributes back to the install that drove it — mirrors
-`sample/MainActivity.kt`'s wiring exactly. Confirmed to type-check (`tsc
---noEmit` clean) and build the Android app cleanly (`gradlew assembleDebug`
-succeeds); **not yet run against a real RevenueCat account** — fill in
-`REVENUECAT_API_KEY` in `App.tsx` with your project's key once you've signed
-up, then use the "RevenueCat: fetch offerings" / "Buy: ..." buttons the same
-way as the native sample. The example's `minSdkVersion` (24) already clears
-RevenueCat's Android floor (23), so no bump was needed there.
+The sample no longer carries RevenueCat, for the reason the Flutter sample
+dropped it: a placeholder key buried the ROAS log under third-party errors that
+looked like breakage and touched nothing, and the store-native path — Play RTDN
+and App Store Server Notifications, both signed by the store — is what this
+product is moving to, so the sample shows the thing being adopted. RevenueCat is
+still served by the backend (`integrations/revenuecat.py`) for anyone on it; see
+the table under "Binding a purchase to the install".
+
+What the sample demonstrates is the *whole* of the purchase wiring: one value on
+the purchase. The **"Show purchase id (store)"** button prints it for the
+platform it is running on.
+
+### Android: Play Billing → Real-Time Developer Notifications
+
+```
+  app                        Google Play                     ROASSensor
+  ───                        ───────────                     ──────────
+  launchBillingFlow with
+  obfuscatedAccountId  ──▶   purchase / renewal / void
+     = visitorId()           RTDN (Pub/Sub push)      ──▶   POST /api/tracking/
+                                                             webhooks/play/<public_key>
+                                                                 │
+                                                                 ├─ packageName must match
+                                                                 │  the site's package_name
+                                                                 ├─ Play Developer API:
+                                                                 │  amount + obfuscatedExternalAccountId
+                                                                 └─ that id IS the vid → attribute
+                                                                    to the install and its ad click
+```
+
+1. **Set the id on the purchase.** With `react-native-iap`:
+   `requestPurchase({ skus: [sku], obfuscatedAccountIdAndroid: await Roas.visitorId() })`.
+   Raw Play Billing: `BillingFlowParams.Builder.setObfuscatedAccountId(vid)`.
+   It is a free-form string, so the vid goes in verbatim — no UUID derivation on
+   Android, which is why `appAccountToken()` resolves null here.
+2. **Tell ROASSensor your package name** — Setup → your app → `package_name`
+   must equal the `applicationId`. The webhook rejects a notification whose
+   `packageName` differs (`400`, verified live), which is what scopes a
+   notification to your site.
+3. **Give the site a Play Developer API service account** (Setup → your app →
+   Play). RTDN is *thin* — it names the purchase token and event, not the price
+   or the buyer — so the amount and the `obfuscatedExternalAccountId` come from a
+   follow-up Developer API call. Without the credential the endpoint still
+   parses, dedups and answers `200 {"resolved": false}` so Play stops retrying;
+   it just cannot book — degraded, never wrong.
+4. **Point Play at the webhook**: Play Console → Monetisation setup →
+   Real-time developer notifications → a Pub/Sub topic with a **push**
+   subscription to
+   `https://<your-host>/api/tracking/webhooks/play/<your-site-public-key>`.
+
+What gets counted: subscription `PURCHASED` / `RENEWED` / `RECOVERED` /
+`RESTARTED` and one-time `PURCHASED` as revenue; voids as a negative conversion
+mirroring the original; everything else acknowledged and ignored. Each renewal
+is keyed on its own **order id** (the purchase token is constant for the life of
+a subscription), so renewals count individually. A licence-tester purchase
+(`purchaseType: 0`) is attributed but kept out of the ad platforms.
+
+### iOS: StoreKit → App Store Server Notifications v2
+
+The value is `await Roas.appAccountToken()` — a UUID **derived from the visitor
+id**, because StoreKit types `appAccountToken` as a UUID; the backend rebuilds
+the vid from it. With `react-native-iap`: `requestPurchase({ sku, appAccountToken })`.
+Then: the site's `bundle_id` must equal the app's (a valid JWS for someone
+else's app is still authentic, so the bundle id is what scopes it), and App
+Store Connect → App Information → App Store Server Notifications → **Version 2**
+→ `https://<your-host>/api/tracking/webhooks/appstore/<your-site-public-key>`,
+sandbox URL the same (sandbox purchases arrive as `environment: "sandbox"` and
+are recorded as test revenue). No shared secret: authenticity is Apple's ES256
+certificate chain. This half is unexercised until the iOS build exists.
+
+### Either store: what a missing id costs
+
+The sale still records — as **UNATTRIBUTED**. The spend still counts, so ROAS
+reads low, and the campaign that earned the sale looks dead. That is the only
+thing the link between the money and the click depends on; if revenue lands
+unattributed, the id was not set on the purchase.
 
 ## ⚠️ iOS: bridge written, not yet built or run
 
@@ -306,6 +441,15 @@ const config = {
 Without this, Metro throws `Unable to resolve module react-native` when
 `react-native-roas/index.js` tries to import it — see bug #3 above.
 
+**And add a `blockList`** for `react` and `react-native` *under the bridge's own
+`node_modules`* — see `example/metro.config.js` for the exact lines.
+`extraNodeModules` is only a fallback: if a copy of `react-native` exists inside
+the linked package (npm 7+ will put one there unless `.npmrc` says
+`legacy-peer-deps=true`, which this package's does), Metro bundles **two**
+copies, and `onDeliveryResult` goes silent while every method call keeps working.
+That is how it shipped for one release; the full story is under "Re-verified on
+native 0.1.6".
+
 ### iOS-specific setup
 
 Autolinking discovers `react-native-roas.podspec` the same way it discovers
@@ -398,9 +542,9 @@ path:
 
 | Path | Field | Value |
 |---|---|---|
-| Play Billing (Android) | `obfuscatedAccountId` | `await Roas.visitorId()` |
+| Play Billing / `react-native-iap` (Android) | `obfuscatedAccountId` (`obfuscatedAccountIdAndroid`) | `await Roas.visitorId()` |
 | StoreKit / `react-native-iap` (iOS) | `appAccountToken` | `await Roas.appAccountToken()` |
-| RevenueCat (either) | `appUserID` | `await Roas.visitorId()` |
+| RevenueCat (either; still supported, no longer what the sample shows) | `appUserID` | `await Roas.visitorId()` |
 
 `appAccountToken()` exists because StoreKit requires a UUID, so the iOS SDK
 derives one from the vid and the backend reconstructs the vid from the App
@@ -525,13 +669,25 @@ listing.
 
 ```bash
 cd example
+cp .env.example .env            # then fill in ROAS_APP_SECRET (Setup → your app → Beacon signing)
 npm install                     # resolves react-native-roas from file:..
 npx react-native start          # Metro, in one terminal
 npx react-native run-android    # in another, with an emulator/device selected
 ```
 
+`example/.env` is the RN twin of the Flutter sample's `--dart-define`: the
+backend URL, the site key and the beacon signing secret are read from it at
+**build** time by `react-native-config` and baked into `BuildConfig`, so none of
+them lives in `App.tsx` and none lands in source control (`.env` is gitignored;
+`.env.example` documents the keys). Editing it means rebuilding, not just
+refreshing Metro. The first lines of the on-screen log say which host, which
+site, and whether signing is ON — the one state an unsigned build cannot
+otherwise show, since it looks identical to a signed one until the site starts
+rejecting.
+
 Watch your Django backend for `POST /api/tracking/mobile/first-open|events|identify`
-landing with `200`/`201` — same confirmation as the native and Flutter samples.
+landing with `200`/`201` — same confirmation as the native and Flutter samples —
+and the `[delivery] … ok` line under each button press on screen.
 
 One local-testing-only gotcha already handled in the example's manifest: the
 app's `android:usesCleartextTraffic` placeholder needs to resolve to `true`

@@ -2,6 +2,19 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
+// react-native-config: reads example/.env (gitignored) at BUILD time and bakes
+// each key into BuildConfig, which JS reads as `Config.<KEY>`. This is the RN
+// twin of the Flutter example's `--dart-define=ROAS_APP_SECRET=…` — the beacon
+// signing secret and the backend URL come from the environment rather than
+// being pasted into App.tsx, so neither lands in source control and a release
+// AAB does not need a code edit to point at a reachable host. Same caveat as
+// dart-define: the values are compiled in, so editing .env means rebuilding.
+project.ext.envConfigFiles = [
+    debug: ".env",
+    release: ".env",
+]
+apply from: project(':react-native-config').projectDir.getPath() + "/dotenv.gradle"
+
 // react-native-gradle-plugin's configureRepositories() injects mavenCentral()/
 // google()/jitpack() into every project via allprojects {} but never
 // mavenLocal() — so a locally-published, not-yet-Central SDK version (e.g.
