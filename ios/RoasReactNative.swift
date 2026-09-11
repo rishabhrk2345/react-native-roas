@@ -26,12 +26,16 @@ import RoasSensor
 @objc(RoasReactNative)
 class RoasReactNative: RCTEventEmitter {
 
-    // NOT `override`: RCTEventEmitter does not implement this — it is an
-    // optional class method on the RCTBridgeModule protocol, which
-    // RCTEventEmitter merely conforms to (see React/Modules/RCTEventEmitter.h).
-    // Marking it `override` fails to compile with "does not override any method
-    // from its superclass".
-    @objc static func requiresMainQueueSetup() -> Bool { false }
+    // `override` IS required. The header (React/Modules/RCTEventEmitter.h)
+    // declares nothing of the sort — it is an optional class method on the
+    // RCTBridgeModule protocol RCTEventEmitter conforms to — so this was first
+    // written without the keyword, on the reasoning that there was nothing to
+    // override. The first real build (Xcode 16.2, RN 0.86's prebuilt
+    // React-Core) disagreed: "overriding declaration requires an 'override'
+    // keyword". Swift's importer surfaces the protocol's optional class method
+    // as inherited on the ObjC superclass, so the keyword is mandatory here and
+    // dropping it is a compile error, not a tidy-up.
+    @objc override static func requiresMainQueueSetup() -> Bool { false }
 
     /// Must match the name `index.js` subscribes to and Android's
     /// `RoasReactModule.DELIVERY_EVENT`.
