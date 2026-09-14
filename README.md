@@ -76,13 +76,10 @@ the example is prepared for it.
 ### Deliberate non-goals
 
 - **Publishing native `com.roassensor:roas` 0.1.7 is not planned, and its
-  source is gone.** Bridge 0.1.7 pins **0.1.9** instead, a local rebuild — see
-  "The Android pin" below for what it does and does not contain, and for the
-  one thing that must happen before this bridge can be released: 0.1.9 resolves
-  from `mavenLocal()` only, so on any other machine the Android build fails
-  outright. The 0.1.7 OEM-authority and VPN work is still missing, which costs
-  unreachable OEM referrer readers on Vivo/Huawei — no effect on the ordinary
-  Play-install path.
+  source is gone.** Bridge 0.1.7 pins **0.1.9**, a local rebuild that is both
+  unpublished and a regression of 0.1.6 — see "The Android pin" below. Until
+  that is rebuilt from the recoverable 0.1.6 sources and published, the
+  shippable path stays bridge `v0.1.6` + native 0.1.6 from Central.
 - **Not published to npm.** A customer app installs it as a git tag, exactly as
   Flutter customers install `roas_flutter`:
   `npm install github:rishabhrk2345/react-native-roas#v0.1.6` — which is what
@@ -109,7 +106,7 @@ an eleventh here, `verifyPurchase()`, which `roas_flutter` does not have yet —
 the first deliberate break in method parity, and one to close rather than keep.
 Through bridge 0.1.6 the two also wrapped the same natives
 (`com.roassensor:roas` 0.1.6, `RoasSensor ~> 0.1.7`); 0.1.7 moves both (0.1.9
-and `~> 0.1.8`) and Flutter has not followed. Where they differ:
+and `~> 0.1.9`) and Flutter has not followed. Where they differ:
 
 | | `roas_flutter` | this |
 |---|---|---|
@@ -252,23 +249,31 @@ That 0.1.7 source is now **gone** (the checkout carrying it was lost; what
 remained locally had regressed past beacon signing and sessions). The
 replacement is a rebuild from the real 0.1.5 source on Central, published
 **locally** as 0.1.9 — skipping 0.1.7 and 0.1.8 so neither number ever names
-two different artifacts, here or in `Roas-ios-SDK`'s tags. It is 0.1.6 plus the
-OEM install-referrer pass, `ts` on every beacon, and `Roas.verifyPurchase()`;
-it is **not** a reintroduction of the 0.1.7 OEM-authority/VPN work, so the
-costs listed below still stand.
+two different artifacts, here or in `Roas-ios-SDK`'s tags. It adds
+`Roas.verifyPurchase()`. It is otherwise a step BACKWARDS from 0.1.6, not
+forwards — see the box below — so every cost listed here still stands, plus
+the ones 0.1.6 had already fixed.
 
-> **0.1.9 is not on Maven Central.** It resolves through `mavenLocal()` only,
-> after `./gradlew :roas:publishToMavenLocal` in `roas-android-sdk`. Until it is
-> published, the Android build of this bridge works on one machine — which is
-> one of the two blockers on tagging bridge 0.1.7.
+> **0.1.9 must not ship, and not only because it is unpublished.** It resolves
+> through `mavenLocal()` only (Central tops out at 0.1.6), so the Android build
+> of this bridge works on exactly one machine. Worse, it was rebuilt from the
+> 0.1.5 sources jar and is a **regression of 0.1.6**: 15 classes against 24,
+> missing the Huawei/Vivo/Xiaomi/Samsung OEM referrer readers, `DeviceLocation`,
+> `RoasProps`, the `<queries>` entries and the install-referrer `<receiver>`.
+> It trades most of 0.1.6 away for one method. The real 0.1.6 source is
+> recoverable from
+> `https://repo1.maven.org/maven2/com/roassensor/roas/0.1.6/roas-0.1.6-sources.jar`
+> — rebuild from that, add `verifyPurchase()`, publish to Central. **The
+> shippable Android path today is unchanged: bridge tag `v0.1.6` against
+> `com.roassensor:roas:0.1.6` from Central**, which is what the panel prints.
 
-> **The other blocker is on iOS: `Roas.verifyPurchase(transactionId:)` does not
-> exist yet.** `RoasReactNative.swift` calls it, and no published `RoasSensor`
-> tag — 0.1.8 included — has that method; it is not in `sdk-ios` at all. So the
-> iOS half of bridge 0.1.7 does not compile today. The pin here is still right
-> for everything through bridge 0.1.6 (0.1.8 fixes the TestFlight
-> `installer_package` mislabel), but it has to move again to whichever tag adds
-> `verifyPurchase` before this bridge can be released.
+> **On iOS the blocker is a tag, not a method.**
+> `Roas.verifyPurchase(transactionId:)` is written and committed in `sdk-ios`
+> as 0.1.9, and the pin here points at that tag — but the tag is minted on a
+> Mac, after `swift build`, `swift test` and the iOS-slice `xcodebuild` pass,
+> so it may not exist on the `Roas-ios-SDK` mirror yet. If `pod install` cannot
+> find it, push the tag; do not lower the pin, because 0.1.8 has no
+> `verifyPurchase` and fails to compile on a missing member.
 
 What that costs, both measured rather than assumed:
 
@@ -293,7 +298,7 @@ version note at the top of `android/build.gradle` are the whole change on this
 side — the work is already written, only unpublished.
 
 This does **not** hold the iOS half back: `RoasSensor` is tagged and
-resolvable on GitHub, and 0.1.8 is a hard floor for this release. The two natives
+resolvable on GitHub, and 0.1.9 is a hard floor for this release. The two natives
 sitting on different numbers is expected, and is why this bridge's version
 tracks neither of them.
 
@@ -515,14 +520,14 @@ find a specification for RoasSensor" until you name the source in your app's
 ```ruby
 target 'YourApp' do
   # ...
-  pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.8'
+  pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.9'
   # or, for local dev against a checkout:
   # pod 'RoasSensor', :path => '../../sdk-ios'
   use_react_native!(...)
 end
 ```
 
-**0.1.8 is a floor, not a suggestion**, for two separate reasons.
+**0.1.9 is a floor, not a suggestion**, for three separate reasons.
 `requestTracking()`, `updateConversionValue()` and `appAccountToken()` are
 RoasSensor 0.1.7 API — on anything older the bridge fails to compile with
 missing-member errors. 0.1.8 adds no API and so breaks no compile, but 0.1.7
@@ -531,7 +536,10 @@ file its check waited on is written asynchronously and is usually still absent
 when the install beacon fires. Nothing errors — the column that separates the
 customer's own QA from their real users just reports the wrong one, for the
 whole beta cohort. 0.1.8 reads the provisioning profile instead, which is in the
-bundle before any code runs and cannot race the beacon.
+bundle before any code runs and cannot race the beacon. And 0.1.9 is where
+`Roas.verifyPurchase(transactionId:)` lands, which this bridge calls — so on
+0.1.8 the iOS target fails to compile on a missing member, which is the first
+reason again and exactly what a floor is for.
 
 Also add to `Info.plist`, for the App Tracking Transparency prompt
 `Roas.initialize()` presents by default on first launch:
@@ -770,7 +778,7 @@ done:
   not merely skip the ATT prompt — it *terminates the app* when the prompt is
   requested, which the SDK does ~0.6s after `configure()` by default. The first
   device launch would have crashed.
-- **The Podfile's `RoasSensor` source is live**, pinned to `:tag => '0.1.8'`
+- **The Podfile's `RoasSensor` source is live**, pinned to `:tag => '0.1.9'`
   rather than commented out behind a machine-specific path. `pod install` no
   longer needs an edit first.
 - **`AppDelegate` forwards deep links** (`openURL` + `continueUserActivity`)

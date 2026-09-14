@@ -24,12 +24,12 @@ Pod::Spec.new do |s|
   s.dependency 'React-Core'
 
   # RoasSensor now has a real home and a real tag:
-  #   https://github.com/rishabhrk2345/Roas-ios-SDK  (tag 0.1.8)
+  #   https://github.com/rishabhrk2345/Roas-ios-SDK  (tag 0.1.9)
   # It is NOT on the CocoaPods trunk, though, and a podspec cannot name a git
   # source for its own dependency. So the consuming APP still has to say where
   # it comes from, in its own ios/Podfile:
   #
-  #   pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.8'
+  #   pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.9'
   #   # or, for local dev against a checkout:
   #   pod 'RoasSensor', :path => '../../sdk-ios'
   #
@@ -56,12 +56,17 @@ Pod::Spec.new do |s|
   # raised so that an app pinning `:tag => '0.1.7'` fails at resolve time rather
   # than shipping a beta whose install rows all read as developer builds.
   #
-  # NOT SUFFICIENT for bridge 0.1.7's own iOS half: `Roas.verifyPurchase`
-  # (called by RoasReactNative.swift) does not exist in 0.1.8 — it is not in
-  # sdk-ios at all yet. This floor is correct for everything that shipped
-  # through bridge 0.1.6; raise it again to the tag that adds that method
-  # before this bridge is tagged, or the iOS build fails on a missing member.
-  s.dependency 'RoasSensor', '~> 0.1.8'
+  # 0.1.9 is then the floor this bridge actually needs, and for a third kind of
+  # reason again: `Roas.verifyPurchase(transactionId:)` is 0.1.9 API, so on
+  # 0.1.8 RoasReactNative.swift fails to compile on a missing member — back to
+  # the first reason above, which is what a floor is for.
+  #
+  # The 0.1.9 TAG is minted on a Mac (swift build + swift test + the iOS-slice
+  # xcodebuild) and may not exist yet when you read this; a version ahead of
+  # its tag is the normal state between "ready" and "shipped". If `pod install`
+  # says it cannot find the tag, that is what happened — mint it, don't lower
+  # the pin.
+  s.dependency 'RoasSensor', '~> 0.1.9'
 
   s.swift_version = '5.9'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
