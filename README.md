@@ -75,11 +75,14 @@ the example is prepared for it.
 
 ### Deliberate non-goals
 
-- **Publishing native `com.roassensor:roas` 0.1.7 is not planned.** The pin
-  stays at 0.1.6. See "The Android pin stays at 0.1.6" below for exactly what
-  that costs — the short version is an empty `referrer_source` on deep-link
-  touches and unreachable OEM referrer readers on Vivo/Huawei, neither of which
-  affects the ordinary Play-install path.
+- **Publishing native `com.roassensor:roas` 0.1.7 is not planned, and its
+  source is gone.** Bridge 0.1.7 pins **0.1.9** instead, a local rebuild — see
+  "The Android pin" below for what it does and does not contain, and for the
+  one thing that must happen before this bridge can be released: 0.1.9 resolves
+  from `mavenLocal()` only, so on any other machine the Android build fails
+  outright. The 0.1.7 OEM-authority and VPN work is still missing, which costs
+  unreachable OEM referrer readers on Vivo/Huawei — no effect on the ordinary
+  Play-install path.
 - **Not published to npm.** A customer app installs it as a git tag, exactly as
   Flutter customers install `roas_flutter`:
   `npm install github:rishabhrk2345/react-native-roas#v0.1.6` — which is what
@@ -100,14 +103,18 @@ the example is prepared for it.
 
 ### Parity with `roas_flutter`, checked rather than assumed
 
-Both bridges expose the same 10 methods with **identical argument shapes**, wrap
-the same two natives (`com.roassensor:roas` 0.1.6, `RoasSensor ~> 0.1.7`), and
-neither repo carries a CHANGELOG, LICENSE, lint config or CI. Where they differ:
+Both bridges expose the same 10 methods with **identical argument shapes**, and
+neither repo carries a CHANGELOG, LICENSE, lint config or CI. Bridge 0.1.7 adds
+an eleventh here, `verifyPurchase()`, which `roas_flutter` does not have yet —
+the first deliberate break in method parity, and one to close rather than keep.
+Through bridge 0.1.6 the two also wrapped the same natives
+(`com.roassensor:roas` 0.1.6, `RoasSensor ~> 0.1.7`); 0.1.7 moves both (0.1.9
+and `~> 0.1.8`) and Flutter has not followed. Where they differ:
 
 | | `roas_flutter` | this |
 |---|---|---|
-| Distinct tests | 12 | 18 (28 reported; one block is parameterised 10 ways) |
-| Example buttons | 7 | 9 — this one can also fire a SKAN value |
+| Distinct tests | 12 | 22 (33 reported; one block is parameterised 11 ways) |
+| Example buttons | 7 | 10 — this one can also fire a SKAN value and a purchase verification |
 | Own backend site for the sample | yes ("ROAS Flutter Sample") | yes ("ROAS RN Sample", `com.roasrntest`) |
 | Config from the environment | `--dart-define` | `example/.env` via react-native-config |
 | Purchase wiring in the sample | store-native (`appAccountToken` button) | store-native (`Show purchase id`, platform-aware) |
@@ -234,12 +241,34 @@ several further reinstalls and force-stops. It is not the SDK's queue (the queue
 was empty and `session_sequence` shows fresh enqueues) and not this bridge; it
 looks like an emulator-side accessibility sweep. Ignore it if you see it once.
 
-**The Android pin stays at 0.1.6, deliberately.** `sdk-android`'s
-`build.gradle.kts` carries `version = "0.1.7"`, but Maven Central's metadata
-stops at 0.1.6 and pinning 0.1.7 fails the build outright with "Could not find
-com.roassensor:roas:0.1.7". Publishing 0.1.7 is **not planned for now**, so
-0.1.6 is the pin rather than a way-station — treat what follows as accepted
-limitations, not pending fixes.
+**The Android pin: 0.1.6 through bridge 0.1.6, then 0.1.9.** Maven Central's
+metadata stops at 0.1.6 — `sdk-android`'s `build.gradle.kts` said
+`version = "0.1.7"`, but nothing under that number was ever published, and
+pinning it fails the build outright with "Could not find
+com.roassensor:roas:0.1.7". A source-tree version number is not evidence that a
+coordinate resolves.
+
+That 0.1.7 source is now **gone** (the checkout carrying it was lost; what
+remained locally had regressed past beacon signing and sessions). The
+replacement is a rebuild from the real 0.1.5 source on Central, published
+**locally** as 0.1.9 — skipping 0.1.7 and 0.1.8 so neither number ever names
+two different artifacts, here or in `Roas-ios-SDK`'s tags. It is 0.1.6 plus the
+OEM install-referrer pass, `ts` on every beacon, and `Roas.verifyPurchase()`;
+it is **not** a reintroduction of the 0.1.7 OEM-authority/VPN work, so the
+costs listed below still stand.
+
+> **0.1.9 is not on Maven Central.** It resolves through `mavenLocal()` only,
+> after `./gradlew :roas:publishToMavenLocal` in `roas-android-sdk`. Until it is
+> published, the Android build of this bridge works on one machine — which is
+> one of the two blockers on tagging bridge 0.1.7.
+
+> **The other blocker is on iOS: `Roas.verifyPurchase(transactionId:)` does not
+> exist yet.** `RoasReactNative.swift` calls it, and no published `RoasSensor`
+> tag — 0.1.8 included — has that method; it is not in `sdk-ios` at all. So the
+> iOS half of bridge 0.1.7 does not compile today. The pin here is still right
+> for everything through bridge 0.1.6 (0.1.8 fixes the TestFlight
+> `installer_package` mislabel), but it has to move again to whichever tag adds
+> `verifyPurchase` before this bridge can be released.
 
 What that costs, both measured rather than assumed:
 
@@ -263,8 +292,8 @@ None of these cost attribution on the ordinary Play-install path, which is why
 version note at the top of `android/build.gradle` are the whole change on this
 side — the work is already written, only unpublished.
 
-This does **not** hold the iOS half back: `RoasSensor` 0.1.7 *is* tagged and
-resolvable on GitHub, and is a hard floor for this release. The two natives
+This does **not** hold the iOS half back: `RoasSensor` is tagged and
+resolvable on GitHub, and 0.1.8 is a hard floor for this release. The two natives
 sitting on different numbers is expected, and is why this bridge's version
 tracks neither of them.
 
@@ -486,16 +515,23 @@ find a specification for RoasSensor" until you name the source in your app's
 ```ruby
 target 'YourApp' do
   # ...
-  pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.7'
+  pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.8'
   # or, for local dev against a checkout:
   # pod 'RoasSensor', :path => '../../sdk-ios'
   use_react_native!(...)
 end
 ```
 
-**0.1.7 is a floor, not a suggestion.** `requestTracking()`,
-`updateConversionValue()` and `appAccountToken()` are RoasSensor 0.1.7 API — on
-anything older the bridge fails to compile with missing-member errors.
+**0.1.8 is a floor, not a suggestion**, for two separate reasons.
+`requestTracking()`, `updateConversionValue()` and `appAccountToken()` are
+RoasSensor 0.1.7 API — on anything older the bridge fails to compile with
+missing-member errors. 0.1.8 adds no API and so breaks no compile, but 0.1.7
+labels every **TestFlight** install `installer_package=development`: the receipt
+file its check waited on is written asynchronously and is usually still absent
+when the install beacon fires. Nothing errors — the column that separates the
+customer's own QA from their real users just reports the wrong one, for the
+whole beta cohort. 0.1.8 reads the provisioning profile instead, which is in the
+bundle before any code runs and cannot race the beacon.
 
 Also add to `Info.plist`, for the App Tracking Transparency prompt
 `Roas.initialize()` presents by default on first launch:
@@ -734,7 +770,7 @@ done:
   not merely skip the ATT prompt — it *terminates the app* when the prompt is
   requested, which the SDK does ~0.6s after `configure()` by default. The first
   device launch would have crashed.
-- **The Podfile's `RoasSensor` source is live**, pinned to `:tag => '0.1.7'`
+- **The Podfile's `RoasSensor` source is live**, pinned to `:tag => '0.1.8'`
   rather than commented out behind a machine-specific path. `pod install` no
   longer needs an edit first.
 - **`AppDelegate` forwards deep links** (`openURL` + `continueUserActivity`)

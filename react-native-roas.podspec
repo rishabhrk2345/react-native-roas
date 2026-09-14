@@ -24,12 +24,12 @@ Pod::Spec.new do |s|
   s.dependency 'React-Core'
 
   # RoasSensor now has a real home and a real tag:
-  #   https://github.com/rishabhrk2345/Roas-ios-SDK  (tag 0.1.7)
+  #   https://github.com/rishabhrk2345/Roas-ios-SDK  (tag 0.1.8)
   # It is NOT on the CocoaPods trunk, though, and a podspec cannot name a git
   # source for its own dependency. So the consuming APP still has to say where
   # it comes from, in its own ios/Podfile:
   #
-  #   pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.7'
+  #   pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.8'
   #   # or, for local dev against a checkout:
   #   pod 'RoasSensor', :path => '../../sdk-ios'
   #
@@ -44,7 +44,24 @@ Pod::Spec.new do |s|
   # compile error about missing members, or on a future incompatible release as
   # missing methods at runtime, rather than at resolve time as a version
   # conflict.
-  s.dependency 'RoasSensor', '~> 0.1.7'
+  #
+  # Raised to 0.1.8 for a DIFFERENT kind of reason, and the distinction matters
+  # if this is ever relaxed: 0.1.8 adds no API, so nothing here fails to compile
+  # against 0.1.7. What 0.1.7 does is label every TestFlight install
+  # `installer_package=development`, because the receipt file it tested for is
+  # written asynchronously and is usually still absent when the install beacon
+  # fires. Nothing errors; the column that exists to separate the customer's own
+  # QA from their real users simply reports the wrong one, for the entire beta
+  # cohort. `~> 0.1.7` would already ALLOW 0.1.8 to resolve — the floor is
+  # raised so that an app pinning `:tag => '0.1.7'` fails at resolve time rather
+  # than shipping a beta whose install rows all read as developer builds.
+  #
+  # NOT SUFFICIENT for bridge 0.1.7's own iOS half: `Roas.verifyPurchase`
+  # (called by RoasReactNative.swift) does not exist in 0.1.8 — it is not in
+  # sdk-ios at all yet. This floor is correct for everything that shipped
+  # through bridge 0.1.6; raise it again to the tag that adds that method
+  # before this bridge is tagged, or the iOS build fails on a missing member.
+  s.dependency 'RoasSensor', '~> 0.1.8'
 
   s.swift_version = '5.9'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }

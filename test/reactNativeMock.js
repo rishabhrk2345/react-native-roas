@@ -27,6 +27,7 @@ function nativeModule() {
     setLogLevel: jest.fn(() => Promise.resolve(null)),
     requestTracking: jest.fn(() => Promise.resolve(null)),
     updateConversionValue: jest.fn(() => Promise.resolve(null)),
+    verifyPurchase: jest.fn(() => Promise.resolve(null)),
     // NativeEventEmitter calls these on the module; the real ones refcount the
     // native callback in RoasReactModule.kt.
     addListener: jest.fn(),

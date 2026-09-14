@@ -23,11 +23,20 @@ group 'com.roassensor.reactnative'
 // stream (onDeliveryResult) never reached JS on RN's new architecture, and the
 // sample was still on RevenueCat. 0.1.6 is the first release a customer app
 // should pin, and the one the panel's Setup page names.
+//
+// 0.1.7 wraps: com.roassensor:roas 0.1.9 (Android), RoasSensor ~> 0.1.8 (iOS) —
+// both natives move, which is unusual and is why each is spelled out. The
+// bridge adds `verifyPurchase()`, the client half of the backend's
+// POST /api/tracking/mobile/purchase. The iOS bump is a correctness pin, not a
+// feature: 0.1.7 mislabels every TestFlight install as a developer build (see
+// react-native-roas.podspec for the mechanism). The Android bump is NOT yet
+// resolvable from Maven Central — see the dependencies block before releasing
+// this number.
+//
 // The two natives sitting on different numbers is not an oversight — it is the
-// situation this versioning rule exists for. Android 0.1.7 is not published; see
-// the dependencies block.
+// situation this versioning rule exists for.
 // Keep package.json and react-native-roas.podspec in step.
-version '0.1.6'
+version '0.1.7'
 
 buildscript {
     ext.kotlin_version = '1.9.24'
@@ -147,48 +156,30 @@ dependencies {
     //          null), session_number added to three beacons that omitted it, and
     //          uptime_seconds unclamped — it capped at 65535 and a real device
     //          reported 576844.
-    // 0.1.6 is the highest PUBLISHED release, which is why the pin stops here
-    // and not at 0.1.7. sdk-android's own build.gradle.kts already says
-    // version = "0.1.7", but nothing under that number has reached Maven Central
-    // — repo1.maven.org's maven-metadata.xml lists 0.1.0 through 0.1.6 and
-    // nothing further. Pinning 0.1.7 fails the build outright with "Could not
-    // find com.roassensor:roas:0.1.7", so a source-tree version number is not
-    // evidence a coordinate resolves; check the metadata before bumping.
+    // 0.1.6 WAS the highest published release when the note above was written.
+    // The genuine 0.1.7 it describes (Vivo authority fix, <queries> entries,
+    // server-side referrer timestamps, firstInstallTime/lastUpdateTime,
+    // is_vpn) is not on this machine and was never recovered — the
+    // roas-android-sdk checkout that carried it is gone; what remains locally
+    // had regressed all the way back to missing beacon signing and sessions
+    // entirely. That checkout has now been re-synced against the real 0.1.5
+    // source published to Maven Central (the closest available match) and
+    // published locally as **0.1.9** — deliberately skipping 0.1.7/0.1.8 so
+    // neither number is reused for a different artifact than the one
+    // documented above or in Roas-ios-SDK's own tags, in case the real 0.1.7
+    // OEM/VPN work resurfaces later.
     //
-    // Publishing 0.1.7 is NOT PLANNED, so 0.1.6 is the pin rather than a
-    // way-station: what follows is a list of accepted limitations, not of
-    // pending fixes. If that decision is revisited, this line and the version
-    // note at the top of the file are the whole change on this side — the work
-    // is written, only unpublished.
+    // 0.1.9 adds `Roas.verifyPurchase()` (Play Developer API purchase
+    // verification, mirroring `verifyTransaction` on the iOS side) and is
+    // otherwise 0.1.6 plus the OEM install-referrer pass, `ts` on every
+    // beacon, and the other fixes the note above lists through 0.1.6 — it is
+    // NOT a reintroduction of the 0.1.7 OEM-authority/VPN work, which is
+    // still missing.
     //
-    // What staying on 0.1.6 costs. The load-bearing one is the OEM readers:
-    // Vivo and Huawei installs attribute no better than they did before the
-    // fallback existed. A PLAY install on such a handset is unaffected, going
-    // through Google's API like any other, which is why this is a reasonable
-    // place to stop. Also measured on a real deep-link touch: referrer_source
-    // arrives EMPTY where iOS sets "deeplink", so a report grouping by source
-    // splits one behaviour across two buckets between the platforms.
-    //
-    // The full contents of 0.1.7: the Vivo authority fix
-    // (the store ships as com.vivo.apprecommend on some builds, not
-    // com.vivo.appstore) and the <queries> entries without which API 30+ package
-    // visibility hid the OEM providers entirely — either bug alone makes the
-    // Vivo and Huawei readers dead code in every real app; Google's SERVER-side
-    // referrer timestamps alongside (never replacing) the client pair, since the
-    // click-injection check runs purely on device-clock values and is therefore
-    // forgeable by setting the clock; PackageManager
-    // firstInstallTime/lastUpdateTime; and network_type + is_vpn from
-    // ConnectivityManager. is_vpn is the load-bearing one there: the deferred
-    // same-IP match is the only route by which a referrer-less install still
-    // attributes, and a VPN silently invalidates the IP it compares — currently
-    // with nothing in the row to say so.
-    //
-    // Note the iOS half is NOT held back with it: RoasSensor 0.1.7 is tagged and
-    // resolvable, and is a hard floor as of bridge 0.1.5 because requestTracking
-    // / updateConversionValue / appAccountToken are 0.1.7 API there. The two
-    // natives are on different numbers, which is exactly why this bridge's own
-    // version stopped tracking either of them — see the note at the top.
-    implementation 'com.roassensor:roas:0.1.6'
+    // NOT yet on Maven Central — resolves only via `mavenLocal()` above,
+    // after running `./gradlew :roas:publishToMavenLocal` in roas-android-sdk.
+    // Re-pin to a Central coordinate once it's actually published there.
+    implementation 'com.roassensor:roas:0.1.9'
 
     // GAID (advertising id) — the ONLY source of `device_id` on Android, the
     // strongest identity key an install can carry and what every GAID-keyed

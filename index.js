@@ -267,6 +267,36 @@ export const Roas = {
   },
 
   /**
+   * Ask the server to VERIFY a purchase against the store's own records the
+   * moment it happens, rather than waiting on the async App Store / Play
+   * server-to-server notification (which, for Play, can be minutes). This
+   * never asserts revenue — it only NAMES a receipt; the collector calls
+   * Apple's App Store Server API or the Play Developer API itself and books
+   * whatever amount THEY report back. Fire-and-forget, like track(): the
+   * result surfaces through onDeliveryResult() at
+   * `/api/tracking/mobile/purchase`, same as any other beacon.
+   *
+   * Pass `transactionId` on iOS (StoreKit's `Transaction.id`, from your
+   * `Transaction.updates` listener) or `purchaseToken` + `productId` (+
+   * optional `isSubscription`) on Android (from your
+   * `PurchasesUpdatedListener`, once `purchase.purchaseState ===
+   * PurchaseState.PURCHASED`). Call it once the store has actually confirmed
+   * the purchase — calling it earlier just gets back "could not verify" and
+   * wastes the round trip.
+   *
+   * @param {{ transactionId?: string, purchaseToken?: string, productId?: string, isSubscription?: boolean }} options
+   */
+  verifyPurchase({ transactionId, purchaseToken, productId, isSubscription = false } = {}) {
+    assertLinked();
+    return RoasReactNative.verifyPurchase({
+      transactionId,
+      purchaseToken,
+      productId,
+      isSubscription,
+    });
+  },
+
+  /**
    * Forward a direct deep link (a link that opened the app while it was
    * already installed — an Android App Link or an iOS universal link) so
    * its `rsclid` attributes this open deterministically. A no-op if `url`

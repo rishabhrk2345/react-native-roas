@@ -95,6 +95,68 @@ describe('track', () => {
   });
 });
 
+describe('verifyPurchase', () => {
+  test('an iOS transaction id is forwarded, with the Android fields absent', async () => {
+    await Roas.verifyPurchase({ transactionId: '2000000912345678' });
+
+    expect(native.verifyPurchase).toHaveBeenCalledWith({
+      transactionId: '2000000912345678',
+      purchaseToken: undefined,
+      productId: undefined,
+      isSubscription: false,
+    });
+  });
+
+  test('a Play token + product id are forwarded, subscription defaulting false', async () => {
+    await Roas.verifyPurchase({ purchaseToken: 'tok-1', productId: 'demo_product' });
+
+    expect(native.verifyPurchase).toHaveBeenCalledWith({
+      transactionId: undefined,
+      purchaseToken: 'tok-1',
+      productId: 'demo_product',
+      isSubscription: false,
+    });
+  });
+
+  test('isSubscription is passed through when set', async () => {
+    // Play resolves a subscription purchase through a different endpoint than a
+    // one-off, so this flag picks which lookup the collector performs. Dropping
+    // it would silently ask the wrong one and resolve nothing.
+    await Roas.verifyPurchase({
+      purchaseToken: 'tok-2',
+      productId: 'monthly',
+      isSubscription: true,
+    });
+
+    expect(native.verifyPurchase).toHaveBeenCalledWith({
+      transactionId: undefined,
+      purchaseToken: 'tok-2',
+      productId: 'monthly',
+      isSubscription: true,
+    });
+  });
+
+  test('the shared option shape is passed whole, never per-platform filtered', async () => {
+    // Both natives take one map and read only their own keys — iOS ignores
+    // purchaseToken, Android ignores transactionId. The bridge must NOT try to
+    // decide which platform it is on and strip the rest: a caller that sends
+    // both (a cross-platform call site) would then have the wrong half removed
+    // by a mistake in the bridge rather than ignored by the side that knows.
+    await Roas.verifyPurchase({
+      transactionId: 'txn-1',
+      purchaseToken: 'tok-3',
+      productId: 'demo_product',
+    });
+
+    expect(native.verifyPurchase).toHaveBeenCalledWith({
+      transactionId: 'txn-1',
+      purchaseToken: 'tok-3',
+      productId: 'demo_product',
+      isSubscription: false,
+    });
+  });
+});
+
 test('handleDeepLink forwards the raw url unmodified', async () => {
   // Kept whole on purpose: native 0.1.5 fixed a bug where every query parameter
   // except rsclid was dropped, so utm_* never reached the backend. Any trimming
@@ -297,6 +359,7 @@ describe('when the native module is not linked', () => {
     ['setLogLevel', () => Unlinked.setLogLevel('DEBUG')],
     ['requestTracking', () => Unlinked.requestTracking()],
     ['updateConversionValue', () => Unlinked.updateConversionValue(1)],
+    ['verifyPurchase', () => Unlinked.verifyPurchase({ transactionId: '1' })],
     ['onDeliveryResult', () => Unlinked.onDeliveryResult(() => {})],
   ])('%s throws a clear "not linked" error', (_name, call) => {
     expect(call).toThrow(/isn't linked/);

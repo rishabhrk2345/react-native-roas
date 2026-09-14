@@ -47,6 +47,23 @@ export interface RoasIdentifyOptions {
   customerUserId?: string;
 }
 
+export interface RoasVerifyPurchaseOptions {
+  /**
+   * **iOS only** — StoreKit's transaction id for this purchase
+   * (`Transaction.id`, as a string). Required on iOS, ignored on Android.
+   */
+  transactionId?: string;
+  /**
+   * **Android only** — Play Billing's token for this purchase
+   * (`Purchase.purchaseToken`). Required on Android, ignored on iOS.
+   */
+  purchaseToken?: string;
+  /** **Android only** — the SKU / subscription id this purchase was for. */
+  productId?: string;
+  /** **Android only** — true for a subscription purchase. Defaults to false. */
+  isSubscription?: boolean;
+}
+
 export interface RoasConversionValueOptions {
   /**
    * `'low'` | `'medium'` | `'high'`. Send it: below Apple's install-volume
@@ -118,6 +135,16 @@ export declare const Roas: {
   visitorId(): Promise<string | null>;
   identify(options: RoasIdentifyOptions): Promise<void>;
   track(event: string, properties?: Record<string, unknown>): Promise<void>;
+  /**
+   * Ask the server to VERIFY a purchase against the store's own records the
+   * moment it happens, rather than waiting on the async App Store / Play
+   * server-to-server notification. Never asserts revenue — only names a
+   * receipt; the collector calls Apple/Google itself and books whatever
+   * amount THEY report. Fire-and-forget: the result surfaces through
+   * `onDeliveryResult` at `/api/tracking/mobile/purchase`, same as any other
+   * beacon.
+   */
+  verifyPurchase(options: RoasVerifyPurchaseOptions): Promise<void>;
   handleDeepLink(url: string): Promise<void>;
   setLogLevel(level: RoasLogLevelValue): Promise<void>;
   /** **iOS only** (a no-op on Android). Resolves once the user has answered. */

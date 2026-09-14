@@ -246,6 +246,37 @@ function AppContent() {
       </View>
       <View style={styles.row}>
         <Button
+          // Temporary manual-verification button for Roas.verifyPurchase() —
+          // not a real purchase (no Play Billing / StoreKit wiring in this
+          // sample), just a fake receipt to prove the request reaches
+          // /api/tracking/mobile/purchase, signs correctly, and gets back a
+          // sensible response. Neither store credential is configured on this
+          // test site, so the expected outcome is a 422 ("could not verify")
+          // — which still proves signing/auth/routing all work; only the
+          // last-mile store lookup is unconfigured. A REAL verification needs
+          // a sandbox purchase on a site that has the store credential saved.
+          //
+          // Platform-aware because the two stores name a receipt differently
+          // and the native side rejects the wrong one outright: iOS wants a
+          // StoreKit transaction id, Android a Play purchase token + product
+          // id. A single Android-shaped payload would make this button dead on
+          // iOS (MISSING_ARG) rather than exercising anything.
+          title="Verify purchase (fake receipt)"
+          onPress={() =>
+            Roas.verifyPurchase(
+              Platform.OS === 'ios'
+                ? {transactionId: 'fake-txn-manual-test-' + Date.now()}
+                : {
+                    purchaseToken: 'fake-token-manual-test-' + Date.now(),
+                    productId: 'demo_product',
+                    isSubscription: false,
+                  },
+            )
+              .then(() => append('→ verifyPurchase() sent'))
+              .catch(err => append(`→ verifyPurchase failed: ${err}`))
+          }
+        />
+        <Button
           title="Simulate deep link"
           // Calls handleLink directly, exactly as a real tap on
           // roasrn://open?rsclid=... would — both paths end at the same

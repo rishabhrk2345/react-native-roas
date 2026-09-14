@@ -32,10 +32,22 @@ target 'RoasRnTest' do
   # build" — against a path that only ever existed on one laptop.
   #
   # Pinned to a TAG, not a branch: a tag is what makes a build traceable to a
-  # release, and 0.1.7 is a hard floor for bridge 0.1.5 — requestTracking,
-  # updateConversionValue and appAccountToken are 0.1.7 API, and anything older
-  # fails to compile with missing-member errors rather than at resolve time.
-  pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.7'
+  # release. 0.1.7 is the API floor — requestTracking, updateConversionValue and
+  # appAccountToken are 0.1.7 API, and anything older fails to compile with
+  # missing-member errors rather than at resolve time — but the pin is 0.1.8,
+  # because 0.1.7 labels every TestFlight install `installer_package=development`.
+  # Its check required the App Store receipt FILE to exist, and that file is
+  # written asynchronously, so it is routinely absent at the moment the install
+  # beacon fires; 0.1.8 reads the provisioning profile instead, which is in the
+  # bundle from the first instruction and cannot race the beacon. That column is
+  # what separates the customer's own QA from real users, and a TestFlight beta
+  # is precisely when it stops being able to — so this is a correctness pin, not
+  # a routine bump.  #
+  # 0.1.8 is the latest PUBLISHED tag and does NOT yet carry
+  # `Roas.verifyPurchase(transactionId:)`, which `RoasReactNative.swift` calls.
+  # The iOS half of bridge 0.1.7 therefore does not compile against it — move
+  # this pin to the tag that adds that method before tagging the bridge.
+  pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.8'
 
   # For local development against a checkout of sdk-ios instead, comment the
   # line above and point this at wherever you placed it:

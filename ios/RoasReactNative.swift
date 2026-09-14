@@ -237,6 +237,25 @@ class RoasReactNative: RCTEventEmitter {
         resolve(nil)
     }
 
+    /// Ask the server to VERIFY a purchase against Apple's own records — see
+    /// `Roas.verifyPurchase(transactionId:)`. `options` is a shape shared with
+    /// the Android side (`purchaseToken`/`productId`/`isSubscription` there),
+    /// so one JS call site works on both platforms; this side only reads
+    /// `transactionId`.
+    @objc(verifyPurchase:resolver:rejecter:)
+    func verifyPurchase(
+        _ options: NSDictionary,
+        resolver resolve: @escaping RCTPromiseResolveBlock,
+        rejecter reject: @escaping RCTPromiseRejectBlock
+    ) {
+        guard let transactionId = options["transactionId"] as? String else {
+            reject("MISSING_ARG", "transactionId is required", nil)
+            return
+        }
+        Roas.verifyPurchase(transactionId: transactionId)
+        resolve(nil)
+    }
+
     @objc(handleDeepLink:resolver:rejecter:)
     func handleDeepLink(
         _ urlString: String,

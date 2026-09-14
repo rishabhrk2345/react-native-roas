@@ -219,6 +219,27 @@ class RoasReactModule(reactContext: ReactApplicationContext) :
         promise.resolve(null)
     }
 
+    /**
+     * Ask the server to VERIFY a purchase against the store's own records —
+     * see `Roas.verifyPurchase` (Android; [purchaseToken]/[productId]/
+     * [isSubscription]) and `Roas.verifyPurchase(transactionId:)` (iOS;
+     * [transactionId]) for what each side actually needs. `options` is a
+     * shared shape so one JS call site works on both platforms; this side
+     * simply ignores the iOS-only `transactionId` field.
+     */
+    @ReactMethod
+    fun verifyPurchase(options: ReadableMap, promise: Promise) {
+        val purchaseToken = options.getStringOrNull("purchaseToken")
+        val productId = options.getStringOrNull("productId")
+        if (purchaseToken == null || productId == null) {
+            promise.reject("MISSING_ARG", "purchaseToken and productId are required")
+            return
+        }
+        val isSubscription = options.hasKey("isSubscription") && options.getBoolean("isSubscription")
+        Roas.verifyPurchase(purchaseToken, productId, isSubscription)
+        promise.resolve(null)
+    }
+
     @ReactMethod
     fun handleDeepLink(url: String, promise: Promise) {
         Roas.handleDeepLink(url)
