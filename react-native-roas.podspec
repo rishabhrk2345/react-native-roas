@@ -24,12 +24,12 @@ Pod::Spec.new do |s|
   s.dependency 'React-Core'
 
   # RoasSensor now has a real home and a real tag:
-  #   https://github.com/rishabhrk2345/Roas-ios-SDK  (tag 0.1.9)
+  #   https://github.com/rishabhrk2345/Roas-ios-SDK  (tag 0.1.10)
   # It is NOT on the CocoaPods trunk, though, and a podspec cannot name a git
   # source for its own dependency. So the consuming APP still has to say where
   # it comes from, in its own ios/Podfile:
   #
-  #   pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.9'
+  #   pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.10'
   #   # or, for local dev against a checkout:
   #   pod 'RoasSensor', :path => '../../sdk-ios'
   #

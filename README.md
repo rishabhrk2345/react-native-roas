@@ -520,7 +520,7 @@ find a specification for RoasSensor" until you name the source in your app's
 ```ruby
 target 'YourApp' do
   # ...
-  pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.9'
+  pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.10'
   # or, for local dev against a checkout:
   # pod 'RoasSensor', :path => '../../sdk-ios'
   use_react_native!(...)
@@ -778,7 +778,7 @@ done:
   not merely skip the ATT prompt — it *terminates the app* when the prompt is
   requested, which the SDK does ~0.6s after `configure()` by default. The first
   device launch would have crashed.
-- **The Podfile's `RoasSensor` source is live**, pinned to `:tag => '0.1.9'`
+- **The Podfile's `RoasSensor` source is live**, pinned to `:tag => '0.1.10'`
   rather than commented out behind a machine-specific path. `pod install` no
   longer needs an edit first.
 - **`AppDelegate` forwards deep links** (`openURL` + `continueUserActivity`)

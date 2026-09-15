@@ -47,9 +47,11 @@ target 'RoasRnTest' do
   #
   # 0.1.9 on top of that carries `Roas.verifyPurchase(transactionId:)`, which
   # `RoasReactNative.swift` calls — on 0.1.8 this target fails to compile on a
-  # missing member. The tag is minted on a Mac after the SDK's own tests pass,
-  # so if `pod install` cannot find it, it has not been pushed yet.
-  pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.9'
+  # missing member. 0.1.10 adds the privacy manifest App Store Connect requires
+  # (ITMS-91053 without it), stops SKAdNetwork registration resetting the
+  # conversion value on every launch, and drops the boot-time API. Every tag is
+  # minted on a Mac after the SDK's own tests pass.
+  pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.10'
 
   # For local development against a checkout of sdk-ios instead, comment the
   # line above and point this at wherever you placed it:
