@@ -82,7 +82,7 @@ the example is prepared for it.
   shippable path stays bridge `v0.1.6` + native 0.1.6 from Central.
 - **Not published to npm.** A customer app installs it as a git tag, exactly as
   Flutter customers install `roas_flutter`:
-  `npm install github:rishabhrk2345/react-native-roas#v0.1.6` — which is what
+  `npm install github:rishabhrk2345/react-native-roas#v0.1.6.1` — which is what
   the panel's Setup page prints. A git install lands as a real directory in the
   app's `node_modules`, so none of the `file:`-link Metro configuration under
   "Install" applies to it.
@@ -94,9 +94,11 @@ the example is prepared for it.
   it was pointed at a cleartext host a release build refuses, so no beacon from
   the *minified* build has been inspected yet. Point `ROAS_BASE_URL` at HTTPS,
   `assembleRelease`, and read `app_set_id_hash` off the install row.
-- **`v0.1.6`** is the tag a customer app should pin: it is the first with
-  `example/` in it and the first whose `onDeliveryResult` works on the new
-  architecture. `v0.1.5` has that stream dead.
+- **`v0.1.6.1`** is the tag a customer app should pin: `v0.1.6` (the first
+  with `example/` in it and a working `onDeliveryResult` on the new
+  architecture) plus the one `override` keyword without which the iOS half
+  does not compile. `v0.1.6` itself builds on Android only; `v0.1.5` has the
+  delivery stream dead.
 
 ### Parity with `roas_flutter`, checked rather than assumed
 
