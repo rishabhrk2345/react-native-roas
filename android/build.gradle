@@ -24,14 +24,14 @@ group 'com.roassensor.reactnative'
 // sample was still on RevenueCat. 0.1.6 is the first release a customer app
 // should pin, and the one the panel's Setup page names.
 //
-// 0.1.7 wraps: com.roassensor:roas 0.1.9 (Android), RoasSensor ~> 0.1.9 (iOS) —
+// 0.1.7 wraps: com.roassensor:roas 0.1.8 (Android), RoasSensor ~> 0.1.9 (iOS) —
 // both natives move, which is unusual and is why each is spelled out. The
 // bridge adds `verifyPurchase()`, the client half of the backend's
-// POST /api/tracking/mobile/purchase. The iOS bump carries the method the
-// bridge calls, and also moves off the build that mislabels every TestFlight
-// install as a developer build (see react-native-roas.podspec). The Android
-// bump is NOT releasable — 0.1.9 is mavenLocal-only AND a regression of 0.1.6;
-// read the dependencies block before going anywhere near a tag.
+// POST /api/tracking/mobile/purchase; each native carries its half of that
+// method. The iOS bump also moves off the build that mislabels every
+// TestFlight install as a developer build (see react-native-roas.podspec).
+// Android 0.1.8 is on Maven Central (published 2026-09-16) — the dependencies
+// block records the detour it took to get there.
 //
 // The two natives sitting on different numbers is not an oversight — it is the
 // situation this versioning rule exists for.
@@ -156,41 +156,25 @@ dependencies {
     //          null), session_number added to three beacons that omitted it, and
     //          uptime_seconds unclamped — it capped at 65535 and a real device
     //          reported 576844.
-    // 0.1.6 WAS the highest published release when the note above was written.
-    // The genuine 0.1.7 it describes (Vivo authority fix, <queries> entries,
-    // server-side referrer timestamps, firstInstallTime/lastUpdateTime,
-    // is_vpn) is not on this machine and was never recovered — the
-    // roas-android-sdk checkout that carried it is gone; what remains locally
-    // had regressed all the way back to missing beacon signing and sessions
-    // entirely. That checkout has now been re-synced against the real 0.1.5
-    // source published to Maven Central (the closest available match) and
-    // published locally as **0.1.9** — deliberately skipping 0.1.7/0.1.8 so
-    // neither number is reused for a different artifact than the one
-    // documented above or in Roas-ios-SDK's own tags, in case the real 0.1.7
-    // OEM/VPN work resurfaces later.
+    // 0.1.8 — on Maven Central since 2026-09-16 — is 0.1.6 plus two things:
+    //   0.1.7: handleDeepLink stamps referrer_source="deeplink", as Roas.swift
+    //          always did, so one user action no longer lands in two buckets
+    //          across the platforms (the standing limitation the README used
+    //          to describe is closed).
+    //   0.1.8: Roas.verifyPurchase(purchaseToken, productId, isSubscription) —
+    //          the Android half of POST /api/tracking/mobile/purchase, which
+    //          this bridge's verifyPurchase() calls.
+    // Verified before publishing: 24 classes in the AAR (the full 0.1.6 set —
+    // Huawei/Vivo readers, DeviceLocation, RoasProps, the install-referrer
+    // receiver), unit tests green, real-device runs on 2026-09-14.
     //
-    // 0.1.9 adds `Roas.verifyPurchase()` (Play Developer API purchase
-    // verification, the Android half of POST /mobile/purchase).
-    //
-    // ⚠ IT IS ALSO A REGRESSION OF 0.1.6 AND MUST NOT SHIP AS IT STANDS.
-    // Rebuilt from the 0.1.5 sources jar, it carries 15 classes where 0.1.6
-    // has 24: no Huawei/Vivo/Xiaomi/Samsung OEM referrer readers, no
-    // DeviceLocation, no RoasProps, and neither the <queries> entries nor the
-    // install-referrer <receiver> in the manifest. So it is not "0.1.6 plus
-    // verifyPurchase" — it trades most of 0.1.6 away for one method.
-    //
-    // It is also mavenLocal-only: Central tops out at 0.1.6, and this resolves
-    // only after `./gradlew :roas:publishToMavenLocal` in roas-android-sdk. So
-    // the Android build of this bridge currently works on exactly one machine.
-    //
-    // The fix is not to publish this. The real 0.1.6 source IS recoverable —
-    //   https://repo1.maven.org/maven2/com/roassensor/roas/0.1.6/roas-0.1.6-sources.jar
-    // — so rebuild from THAT, add verifyPurchase(), and publish to Central
-    // before this pin is allowed anywhere near a release or the panel.
-    //
-    // The shippable Android path today is unchanged: bridge tag v0.1.6 against
-    // com.roassensor:roas:0.1.6 from Central, which is what the panel prints.
-    implementation 'com.roassensor:roas:0.1.9'
+    // The number is 0.1.8 and not 0.1.9 on purpose. A mavenLocal "0.1.9" built
+    // from a stale 0.1.5 tree (15 classes, no OEM readers) sat on developer
+    // machines for a while and this bridge briefly pinned it; Gradle would keep
+    // serving that cached AAR under the same coordinates, so the real release
+    // took a number nothing had ever used. If a build ever resolves 0.1.9 from
+    // ~/.m2, delete it — it is the regression, not a newer SDK.
+    implementation 'com.roassensor:roas:0.1.8'
 
     // GAID (advertising id) — the ONLY source of `device_id` on Android, the
     // strongest identity key an install can carry and what every GAID-keyed

@@ -75,14 +75,15 @@ the example is prepared for it.
 
 ### Deliberate non-goals
 
-- **Publishing native `com.roassensor:roas` 0.1.7 is not planned, and its
-  source is gone.** Bridge 0.1.7 pins **0.1.9**, a local rebuild that is both
-  unpublished and a regression of 0.1.6 — see "The Android pin" below. Until
-  that is rebuilt from the recoverable 0.1.6 sources and published, the
-  shippable path stays bridge `v0.1.6` + native 0.1.6 from Central.
+- **Native Android 0.1.8 is the pin** — on Maven Central since 2026-09-16. It
+  is 0.1.6 plus `referrer_source="deeplink"` on deep-link opens and
+  `verifyPurchase()`. The 0.1.7 OEM-authority/VPN work described in older
+  notes is still not in it; see "The Android pin" below for what that costs
+  (unreachable OEM referrer readers on Vivo/Huawei; no effect on the ordinary
+  Play-install path).
 - **Not published to npm.** A customer app installs it as a git tag, exactly as
   Flutter customers install `roas_flutter`:
-  `npm install github:rishabhrk2345/react-native-roas#v0.1.6.1` — which is what
+  `npm install github:rishabhrk2345/react-native-roas#v0.1.7` — which is what
   the panel's Setup page prints. A git install lands as a real directory in the
   app's `node_modules`, so none of the `file:`-link Metro configuration under
   "Install" applies to it.
@@ -94,11 +95,12 @@ the example is prepared for it.
   it was pointed at a cleartext host a release build refuses, so no beacon from
   the *minified* build has been inspected yet. Point `ROAS_BASE_URL` at HTTPS,
   `assembleRelease`, and read `app_set_id_hash` off the install row.
-- **`v0.1.6.1`** is the tag a customer app should pin: `v0.1.6` (the first
-  with `example/` in it and a working `onDeliveryResult` on the new
-  architecture) plus the one `override` keyword without which the iOS half
-  does not compile. `v0.1.6` itself builds on Android only; `v0.1.5` has the
-  delivery stream dead.
+- **`v0.1.7`** is the tag a customer app should pin: `verifyPurchase()` on
+  both platforms, native Android 0.1.8 from Central, iOS `RoasSensor` 0.1.10
+  named by the app's Podfile. `v0.1.6.1` (same natives as v0.1.6 plus the
+  `override` keyword the iOS half needs) remains fine for an app that does
+  not want `verifyPurchase`; `v0.1.6` builds on Android only; `v0.1.5` has
+  the delivery stream dead.
 
 ### Parity with `roas_flutter`, checked rather than assumed
 
@@ -107,8 +109,8 @@ neither repo carries a CHANGELOG, LICENSE, lint config or CI. Bridge 0.1.7 adds
 an eleventh here, `verifyPurchase()`, which `roas_flutter` does not have yet —
 the first deliberate break in method parity, and one to close rather than keep.
 Through bridge 0.1.6 the two also wrapped the same natives
-(`com.roassensor:roas` 0.1.6, `RoasSensor ~> 0.1.7`); 0.1.7 moves both (0.1.9
-and `~> 0.1.9`) and Flutter has not followed. Where they differ:
+(`com.roassensor:roas` 0.1.6, `RoasSensor ~> 0.1.7`); 0.1.7 moves both (0.1.8
+and `~> 0.1.9`) and Flutter has not followed yet. Where they differ:
 
 | | `roas_flutter` | this |
 |---|---|---|
@@ -162,15 +164,11 @@ through `/api/tracking/c/<slug>` and replayed as a deep link:
   columns would have been blank and the open would have attributed to a click
   with no campaign context.
 
-One field does *not* arrive: `referrer_source` is empty on a deep-link touch,
-where iOS sets `"deeplink"`. This is **not** a bridge defect and Flutter behaves
-identically — the `.put("referrer_source", "deeplink")` line is part of native
-0.1.7 (same commit as `version = "0.1.7"`), which is not published and is not
-planned to be. So this is a **standing limitation**, not one waiting on a
-release: any report grouping by source splits one user behaviour across two
-buckets between iOS and Android. It costs no attribution — the click id
-extracts correctly on both — so the fix is to group by something else, or to
-treat an empty `referrer_source` on an `app_open` as meaning `deeplink`.
+`referrer_source` arrives as `"deeplink"` on a deep-link touch as of native
+0.1.8 (bridge v0.1.7), matching iOS. On bridge v0.1.6.x (native 0.1.6) it is
+empty, so a report grouping by source splits one behaviour across two buckets
+between the platforms until the app upgrades — attribution itself is
+unaffected either way, the click id extracts correctly on both.
 
 ### Re-verified on native 0.1.6 — the full chain, 2026-09-10
 
@@ -240,42 +238,22 @@ several further reinstalls and force-stops. It is not the SDK's queue (the queue
 was empty and `session_sequence` shows fresh enqueues) and not this bridge; it
 looks like an emulator-side accessibility sweep. Ignore it if you see it once.
 
-**The Android pin: 0.1.6 through bridge 0.1.6, then 0.1.9.** Maven Central's
-metadata stops at 0.1.6 — `sdk-android`'s `build.gradle.kts` said
-`version = "0.1.7"`, but nothing under that number was ever published, and
-pinning it fails the build outright with "Could not find
-com.roassensor:roas:0.1.7". A source-tree version number is not evidence that a
-coordinate resolves.
+**The Android pin: 0.1.6 through bridge 0.1.6, then 0.1.8.** Maven Central's
+metadata stopped at 0.1.6 for months — `sdk-android`'s `build.gradle.kts` said
+`version = "0.1.7"` but nothing under that number was ever published, and a
+source-tree version number is not evidence that a coordinate resolves.
 
-That 0.1.7 source is now **gone** (the checkout carrying it was lost; what
-remained locally had regressed past beacon signing and sessions). The
-replacement is a rebuild from the real 0.1.5 source on Central, published
-**locally** as 0.1.9 — skipping 0.1.7 and 0.1.8 so neither number ever names
-two different artifacts, here or in `Roas-ios-SDK`'s tags. It adds
-`Roas.verifyPurchase()`. It is otherwise a step BACKWARDS from 0.1.6, not
-forwards — see the box below — so every cost listed here still stands, plus
-the ones 0.1.6 had already fixed.
+The real 0.1.8 was published on 2026-09-16 from the in-repo `sdk-android`
+tree: 24 classes (the full 0.1.6 set), `referrer_source="deeplink"` on
+deep-link opens (0.1.7), and `Roas.verifyPurchase()` (0.1.8). The bridge pins
+it as of v0.1.7. A mavenLocal-only "0.1.9" — a 15-class rebuild from stale
+0.1.5 sources — briefly existed on developer machines and was pinned by an
+unreleased commit of this bridge; it was never published and the real release
+skipped that number so a cached copy can never shadow it. **If a build resolves
+0.1.9, delete it from `~/.m2` — it is the regression.**
 
-> **0.1.9 must not ship, and not only because it is unpublished.** It resolves
-> through `mavenLocal()` only (Central tops out at 0.1.6), so the Android build
-> of this bridge works on exactly one machine. Worse, it was rebuilt from the
-> 0.1.5 sources jar and is a **regression of 0.1.6**: 15 classes against 24,
-> missing the Huawei/Vivo/Xiaomi/Samsung OEM referrer readers, `DeviceLocation`,
-> `RoasProps`, the `<queries>` entries and the install-referrer `<receiver>`.
-> It trades most of 0.1.6 away for one method. The real 0.1.6 source is
-> recoverable from
-> `https://repo1.maven.org/maven2/com/roassensor/roas/0.1.6/roas-0.1.6-sources.jar`
-> — rebuild from that, add `verifyPurchase()`, publish to Central. **The
-> shippable Android path today is unchanged: bridge tag `v0.1.6` against
-> `com.roassensor:roas:0.1.6` from Central**, which is what the panel prints.
-
-> **On iOS the blocker is a tag, not a method.**
-> `Roas.verifyPurchase(transactionId:)` is written and committed in `sdk-ios`
-> as 0.1.9, and the pin here points at that tag — but the tag is minted on a
-> Mac, after `swift build`, `swift test` and the iOS-slice `xcodebuild` pass,
-> so it may not exist on the `Roas-ios-SDK` mirror yet. If `pod install` cannot
-> find it, push the tag; do not lower the pin, because 0.1.8 has no
-> `verifyPurchase` and fails to compile on a missing member.
+The 0.1.7 OEM-authority / VPN work is still not in any published release, so
+the costs below still stand.
 
 What that costs, both measured rather than assumed:
 
