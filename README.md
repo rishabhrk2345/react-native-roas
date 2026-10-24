@@ -75,15 +75,16 @@ the example is prepared for it.
 
 ### Deliberate non-goals
 
-- **Native Android 0.1.8 is the pin** — on Maven Central since 2026-09-16. It
-  is 0.1.6 plus `referrer_source="deeplink"` on deep-link opens and
-  `verifyPurchase()`. The 0.1.7 OEM-authority/VPN work described in older
+- **Native Android 0.1.10 is the pin** (bridge 0.1.8, Maven Central since
+  2026-10-24): 0.1.8's `referrer_source="deeplink"` and `verifyPurchase()`,
+  plus the real default collector (`core.roassensor.com`) and `track()`
+  props that no longer drop the event on a NaN. The 0.1.7 OEM-authority/VPN work described in older
   notes is still not in it; see "The Android pin" below for what that costs
   (unreachable OEM referrer readers on Vivo/Huawei; no effect on the ordinary
   Play-install path).
 - **Not published to npm.** A customer app installs it as a git tag, exactly as
   Flutter customers install `roas_flutter`:
-  `npm install github:rishabhrk2345/react-native-roas#v0.1.7` — which is what
+  `npm install github:rishabhrk2345/react-native-roas#v0.1.8` — which is what
   the panel's Setup page prints. A git install lands as a real directory in the
   app's `node_modules`, so none of the `file:`-link Metro configuration under
   "Install" applies to it.
@@ -95,9 +96,10 @@ the example is prepared for it.
   it was pointed at a cleartext host a release build refuses, so no beacon from
   the *minified* build has been inspected yet. Point `ROAS_BASE_URL` at HTTPS,
   `assembleRelease`, and read `app_set_id_hash` off the install row.
-- **`v0.1.7`** is the tag a customer app should pin: `verifyPurchase()` on
-  both platforms, native Android 0.1.8 from Central, iOS `RoasSensor` 0.1.10
-  named by the app's Podfile. `v0.1.6.1` (same natives as v0.1.6 plus the
+- **`v0.1.8`** is the tag a customer app should pin: native Android 0.1.10
+  from Central and iOS `RoasSensor` 0.1.15 named by the app's Podfile, the
+  first iOS release that does not crash on a NaN in `track()`. `v0.1.7`
+  (Android 0.1.8, iOS 0.1.10) still builds but carries that crash. `v0.1.6.1` (same natives as v0.1.6 plus the
   `override` keyword the iOS half needs) remains fine for an app that does
   not want `verifyPurchase`; `v0.1.6` builds on Android only; `v0.1.5` has
   the delivery stream dead.
@@ -109,8 +111,9 @@ neither repo carries a CHANGELOG, LICENSE, lint config or CI. Bridge 0.1.7 adds
 an eleventh here, `verifyPurchase()`, which `roas_flutter` does not have yet —
 the first deliberate break in method parity, and one to close rather than keep.
 Through bridge 0.1.6 the two also wrapped the same natives
-(`com.roassensor:roas` 0.1.6, `RoasSensor ~> 0.1.7`); 0.1.7 moves both (0.1.8
-and `~> 0.1.9`) and Flutter has not followed yet. Where they differ:
+(`com.roassensor:roas` 0.1.6, `RoasSensor ~> 0.1.7`); 0.1.7 moved both (0.1.8
+and `~> 0.1.9`), and bridge 0.1.8 and `roas_flutter` 0.1.10 both wrap native
+Android 0.1.10 and `RoasSensor ~> 0.1.15`. Where they differ:
 
 | | `roas_flutter` | this |
 |---|---|---|
@@ -278,7 +281,7 @@ version note at the top of `android/build.gradle` are the whole change on this
 side — the work is already written, only unpublished.
 
 This does **not** hold the iOS half back: `RoasSensor` is tagged and
-resolvable on GitHub, and 0.1.9 is a hard floor for this release. The two natives
+resolvable on GitHub, and 0.1.15 is a hard floor for this release. The two natives
 sitting on different numbers is expected, and is why this bridge's version
 tracks neither of them.
 
@@ -439,7 +442,7 @@ For a customer app, pin the git tag — the panel's Setup page prints this line
 with the right version:
 
 ```bash
-npm install github:rishabhrk2345/react-native-roas#v0.1.6
+npm install github:rishabhrk2345/react-native-roas#v0.1.8
 ```
 
 For working on the bridge itself, link it locally instead:
@@ -500,14 +503,17 @@ find a specification for RoasSensor" until you name the source in your app's
 ```ruby
 target 'YourApp' do
   # ...
-  pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.10'
+  pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.15'
   # or, for local dev against a checkout:
   # pod 'RoasSensor', :path => '../../sdk-ios'
   use_react_native!(...)
 end
 ```
 
-**0.1.9 is a floor, not a suggestion**, for three separate reasons.
+**0.1.15 is a floor, not a suggestion.** Below it a `track()` property the
+JSON encoder refuses (a NaN from JavaScript, say) crashes the app with an
+exception Swift cannot catch, and the default collector is a host with no
+DNS. The earlier floors had three separate reasons of their own.
 `requestTracking()`, `updateConversionValue()` and `appAccountToken()` are
 RoasSensor 0.1.7 API — on anything older the bridge fails to compile with
 missing-member errors. 0.1.8 adds no API and so breaks no compile, but 0.1.7
@@ -758,7 +764,7 @@ done:
   not merely skip the ATT prompt — it *terminates the app* when the prompt is
   requested, which the SDK does ~0.6s after `configure()` by default. The first
   device launch would have crashed.
-- **The Podfile's `RoasSensor` source is live**, pinned to `:tag => '0.1.10'`
+- **The Podfile's `RoasSensor` source is live**, pinned to `:tag => '0.1.15'`
   rather than commented out behind a machine-specific path. `pod install` no
   longer needs an edit first.
 - **`AppDelegate` forwards deep links** (`openURL` + `continueUserActivity`)

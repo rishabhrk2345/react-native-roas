@@ -61,12 +61,19 @@ Pod::Spec.new do |s|
   # 0.1.8 RoasReactNative.swift fails to compile on a missing member — back to
   # the first reason above, which is what a floor is for.
   #
-  # The 0.1.9 TAG is minted on a Mac (swift build + swift test + the iOS-slice
+  # 0.1.15 is the floor as of bridge 0.1.8, for the plainest reason yet: below
+  # it a track() property JSONSerialization refuses (a NaN from JavaScript, a
+  # value it cannot encode) crashes the host app with an exception Swift
+  # cannot catch, and the default collector is api.roassensor.com, which has
+  # no DNS. An app whose Podfile still names an older tag now fails at
+  # `pod install` instead of shipping that crash.
+  #
+  # A new RoasSensor TAG is minted on a Mac (swift build + swift test + the iOS-slice
   # xcodebuild) and may not exist yet when you read this; a version ahead of
   # its tag is the normal state between "ready" and "shipped". If `pod install`
   # says it cannot find the tag, that is what happened — mint it, don't lower
   # the pin.
-  s.dependency 'RoasSensor', '~> 0.1.9'
+  s.dependency 'RoasSensor', '~> 0.1.15'
 
   s.swift_version = '5.9'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }

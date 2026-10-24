@@ -51,7 +51,7 @@ target 'RoasRnTest' do
   # (ITMS-91053 without it), stops SKAdNetwork registration resetting the
   # conversion value on every launch, and drops the boot-time API. Every tag is
   # minted on a Mac after the SDK's own tests pass.
-  pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.10'
+  pod 'RoasSensor', :git => 'https://github.com/rishabhrk2345/Roas-ios-SDK.git', :tag => '0.1.15'
 
   # For local development against a checkout of sdk-ios instead, comment the
   # line above and point this at wherever you placed it:
